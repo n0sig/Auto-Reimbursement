@@ -28,12 +28,28 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// Add authorization policies
+builder.Services.AddAuthorizationCore(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireAssertion(context =>
+    {
+        var user = context.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userManager = context.Resource as UserManager<ApplicationUser>;
+            // Policy will be evaluated in components with access to UserManager
+            return true;
+        }
+        return false;
+    }));
+});
 
 var app = builder.Build();
 
@@ -59,5 +75,35 @@ app.MapRazorComponents<App>()
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+// Seed the database with an initial administrator
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    
+    // Apply migrations
+    context.Database.Migrate();
+    
+    // Seed admin user if no users exist
+    if (!context.Users.Any())
+    {
+        var adminUser = new ApplicationUser
+        {
+            UserName = "admin@autoreimbursement.com",
+            Email = "admin@autoreimbursement.com",
+            EmailConfirmed = true,
+            IsAdministrator = true
+        };
+        
+        var result = await userManager.CreateAsync(adminUser, "Admin123!");
+        if (result.Succeeded)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Admin user created successfully");
+        }
+    }
+}
 
 app.Run();

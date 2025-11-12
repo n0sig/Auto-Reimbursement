@@ -1,0 +1,221 @@
+@page "/user-management"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using AutoReimbursement.Data
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@inject ILogger<UserManagement> Logger
+@rendermode InteractiveServer
+
+@attribute [Authorize]
+
+<PageTitle>User Management</PageTitle>
+
+<h1>User Management</h1>
+
+@if (!isAuthorized)
+{
+    <div class="alert alert-danger">
+        <h4>Access Denied</h4>
+        <p>You must be an administrator to access this page.</p>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert alert-info">@statusMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h3>Add New User</h3>
+            <EditForm Model="newUserModel" OnValidSubmit="CreateUser" FormName="createUser">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+                
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="newUserModel.Email" class="form-control" placeholder="email@example.com" />
+                    <label>Email</label>
+                    <ValidationMessage For="() => newUserModel.Email" />
+                </div>
+                
+                <div class="form-floating mb-3">
+                    <InputText type="password" @bind-Value="newUserModel.Password" class="form-control" placeholder="password" />
+                    <label>Password</label>
+                    <ValidationMessage For="() => newUserModel.Password" />
+                </div>
+                
+                <div class="form-check mb-3">
+                    <InputCheckbox @bind-Value="newUserModel.IsAdministrator" class="form-check-input" id="isAdmin" />
+                    <label class="form-check-label" for="isAdmin">
+                        Administrator
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <hr />
+
+    <h3>Existing Users</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.Email</td>
+                    <td>@(user.IsAdministrator ? "Administrator" : "User")</td>
+                    <td>
+                        @if (user.Id != currentUserId)
+                        {
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteUser(user.Id)">Delete</button>
+                        }
+                        else
+                        {
+                            <span class="text-muted">(Current User)</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool isAuthorized = false;
+    private string? currentUserId;
+    private List<ApplicationUser> users = new();
+    private string? statusMessage;
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private NewUserModel newUserModel { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var currentUser = await UserManager.GetUserAsync(user);
+                if (currentUser != null)
+                {
+                    currentUserId = currentUser.Id;
+                    isAuthorized = currentUser.IsAdministrator;
+                    
+                    if (isAuthorized)
+                    {
+                        await LoadUsers();
+                    }
+                }
+            }
+        }
+    }
+
+    private Task LoadUsers()
+    {
+        users = UserManager.Users.ToList();
+        return Task.CompletedTask;
+    }
+
+    private async Task CreateUser()
+    {
+        try
+        {
+            var user = new ApplicationUser
+            {
+                UserName = newUserModel.Email,
+                Email = newUserModel.Email,
+                EmailConfirmed = true,
+                IsAdministrator = newUserModel.IsAdministrator
+            };
+
+            var result = await UserManager.CreateAsync(user, newUserModel.Password);
+
+            if (result.Succeeded)
+            {
+                statusMessage = $"User {newUserModel.Email} created successfully.";
+                errorMessage = null;
+                newUserModel = new NewUserModel();
+                await LoadUsers();
+                Logger.LogInformation("User {Email} created by administrator", user.Email);
+            }
+            else
+            {
+                errorMessage = $"Error creating user: {string.Join(", ", result.Errors.Select(e => e.Description))}";
+                statusMessage = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error creating user");
+        }
+    }
+
+    private async Task DeleteUser(string userId)
+    {
+        try
+        {
+            var user = await UserManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                var result = await UserManager.DeleteAsync(user);
+                if (result.Succeeded)
+                {
+                    statusMessage = $"User {user.Email} deleted successfully.";
+                    errorMessage = null;
+                    await LoadUsers();
+                    Logger.LogInformation("User {Email} deleted by administrator", user.Email);
+                }
+                else
+                {
+                    errorMessage = $"Error deleting user: {string.Join(", ", result.Errors.Select(e => e.Description))}";
+                    statusMessage = null;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error deleting user");
+        }
+    }
+
+    public class NewUserModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        public bool IsAdministrator { get; set; } = false;
+    }
+}
