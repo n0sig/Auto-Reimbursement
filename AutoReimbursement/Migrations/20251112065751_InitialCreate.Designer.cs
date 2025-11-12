@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoReimbursement.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251112064621_AddIsAdministratorToUser")]
-    partial class AddIsAdministratorToUser
+    [Migration("20251112065751_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

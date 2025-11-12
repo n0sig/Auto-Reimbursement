@@ -77,8 +77,13 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 // Seed the database with an initial administrator
-using (var scope = app.Services.CreateScope())
+await SeedDatabaseAsync(app);
+
+app.Run();
+
+static async Task SeedDatabaseAsync(WebApplication app)
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     var context = services.GetRequiredService<ApplicationDbContext>();
@@ -105,5 +110,3 @@ using (var scope = app.Services.CreateScope())
         }
     }
 }
-
-app.Run();
