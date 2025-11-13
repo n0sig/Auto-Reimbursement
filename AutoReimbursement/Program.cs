@@ -96,7 +96,7 @@ static async Task SeedDatabaseAsync(WebApplication app)
     {
         var adminUser = new ApplicationUser
         {
-            UserName = "admin@autoreimbursement.com",
+            UserName = "admin",
             Email = "admin@autoreimbursement.com",
             EmailConfirmed = true,
             IsAdministrator = true
