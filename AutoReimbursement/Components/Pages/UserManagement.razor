@@ -71,7 +71,7 @@ else
             <tr>
                 <th>Username</th>
                 <th>Role</th>
-                <th>Actions</th>
+                <th style="width: 250px;">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -83,6 +83,7 @@ else
                     <td>
                         @if (user.Id != currentUserId)
                         {
+                            <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowResetPasswordDialog(user.Id, user.UserName!)">Reset Password</button>
                             <button class="btn btn-sm btn-danger" @onclick="() => DeleteUser(user.Id)">Delete</button>
                         }
                         else
@@ -94,6 +95,40 @@ else
             }
         </tbody>
     </table>
+
+    @if (showResetPasswordDialog)
+    {
+        <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Reset Password for @resetPasswordUsername</h5>
+                        <button type="button" class="btn-close" @onclick="CancelResetPassword"></button>
+                    </div>
+                    <EditForm Model="resetPasswordModel" OnValidSubmit="ResetUserPassword" FormName="resetPassword">
+                        <DataAnnotationsValidator />
+                        <div class="modal-body">
+                            <ValidationSummary class="text-danger" />
+                            <div class="form-floating mb-3">
+                                <InputText type="password" @bind-Value="resetPasswordModel.NewPassword" class="form-control" placeholder="New password" />
+                                <label>New Password</label>
+                                <ValidationMessage For="() => resetPasswordModel.NewPassword" />
+                            </div>
+                            <div class="form-floating mb-3">
+                                <InputText type="password" @bind-Value="resetPasswordModel.ConfirmPassword" class="form-control" placeholder="Confirm password" />
+                                <label>Confirm Password</label>
+                                <ValidationMessage For="() => resetPasswordModel.ConfirmPassword" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelResetPassword">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Reset Password</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -105,9 +140,15 @@ else
     private List<ApplicationUser> users = new();
     private string? statusMessage;
     private string? errorMessage;
+    private bool showResetPasswordDialog = false;
+    private string? resetPasswordUserId;
+    private string? resetPasswordUsername;
 
     [SupplyParameterFromForm]
     private NewUserModel newUserModel { get; set; } = new();
+
+    [SupplyParameterFromForm]
+    private ResetPasswordModel resetPasswordModel { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -205,6 +246,70 @@ else
         }
     }
 
+    private void ShowResetPasswordDialog(string userId, string username)
+    {
+        resetPasswordUserId = userId;
+        resetPasswordUsername = username;
+        resetPasswordModel = new ResetPasswordModel();
+        showResetPasswordDialog = true;
+        statusMessage = null;
+        errorMessage = null;
+    }
+
+    private void CancelResetPassword()
+    {
+        showResetPasswordDialog = false;
+        resetPasswordUserId = null;
+        resetPasswordUsername = null;
+        resetPasswordModel = new ResetPasswordModel();
+    }
+
+    private async Task ResetUserPassword()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(resetPasswordUserId))
+            {
+                errorMessage = "User not found.";
+                return;
+            }
+
+            var user = await UserManager.FindByIdAsync(resetPasswordUserId);
+            if (user != null)
+            {
+                // Remove existing password and set new one
+                var removePasswordResult = await UserManager.RemovePasswordAsync(user);
+                if (!removePasswordResult.Succeeded)
+                {
+                    errorMessage = $"Error resetting password: {string.Join(", ", removePasswordResult.Errors.Select(e => e.Description))}";
+                    return;
+                }
+
+                var addPasswordResult = await UserManager.AddPasswordAsync(user, resetPasswordModel.NewPassword);
+                if (addPasswordResult.Succeeded)
+                {
+                    statusMessage = $"Password for user {user.UserName} has been reset successfully.";
+                    errorMessage = null;
+                    showResetPasswordDialog = false;
+                    Logger.LogInformation("Administrator reset password for user {Username}", user.UserName);
+                }
+                else
+                {
+                    errorMessage = $"Error setting new password: {string.Join(", ", addPasswordResult.Errors.Select(e => e.Description))}";
+                }
+            }
+            else
+            {
+                errorMessage = "User not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Error resetting user password");
+        }
+    }
+
     public class NewUserModel
     {
         [Required]
@@ -216,5 +321,17 @@ else
         public string Password { get; set; } = "";
 
         public bool IsAdministrator { get; set; } = false;
+    }
+
+    public class ResetPasswordModel
+    {
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        public string NewPassword { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
     }
 }

@@ -27,9 +27,9 @@
                     </div>
                 }
                 <div class="nav-item px-3">
-                    <span class="nav-link">
+                    <NavLink class="nav-link" href="Account/Profile">
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </span>
+                    </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <form action="Account/Logout" method="post">
