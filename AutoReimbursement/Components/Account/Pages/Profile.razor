@@ -1,0 +1,317 @@
+@page "/Account/Profile"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using AutoReimbursement.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Profile> Logger
+@inject NavigationManager NavigationManager
+
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Profile</PageTitle>
+
+<h1>Profile</h1>
+
+@if (currentUser != null)
+{
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Account Information</h5>
+                    <p><strong>Username:</strong> @currentUser.UserName</p>
+                    <p><strong>Email:</strong> @currentUser.Email</p>
+                    <p><strong>Role:</strong> @(currentUser.IsAdministrator ? "Administrator" : "User")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Change Password</h5>
+                    
+                    <StatusMessage Message="@changePasswordMessage" />
+                    @if (!string.IsNullOrEmpty(changePasswordError))
+                    {
+                        <div class="alert alert-danger">@changePasswordError</div>
+                    }
+                    
+                    <EditForm Model="changePasswordInput" method="post" OnValidSubmit="OnChangePasswordAsync" FormName="change-password">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" role="alert" />
+                        
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="changePasswordInput.OldPassword" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Current password" />
+                            <label for="old-password" class="form-label">Current Password</label>
+                            <ValidationMessage For="() => changePasswordInput.OldPassword" class="text-danger" />
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="changePasswordInput.NewPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="New password" />
+                            <label for="new-password" class="form-label">New Password</label>
+                            <ValidationMessage For="() => changePasswordInput.NewPassword" class="text-danger" />
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="changePasswordInput.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="Confirm new password" />
+                            <label for="confirm-password" class="form-label">Confirm New Password</label>
+                            <ValidationMessage For="() => changePasswordInput.ConfirmPassword" class="text-danger" />
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (currentUser.IsAdministrator)
+    {
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Reset User Passwords</h5>
+                        <p class="text-muted">As an administrator, you can reset passwords for other users.</p>
+                        
+                        @if (!string.IsNullOrEmpty(resetPasswordMessage))
+                        {
+                            <div class="alert alert-info">@resetPasswordMessage</div>
+                        }
+                        @if (!string.IsNullOrEmpty(resetPasswordError))
+                        {
+                            <div class="alert alert-danger">@resetPasswordError</div>
+                        }
+                        
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in allUsers)
+                                {
+                                    <tr>
+                                        <td>@user.UserName</td>
+                                        <td>@(user.IsAdministrator ? "Administrator" : "User")</td>
+                                        <td>
+                                            @if (user.Id != currentUser.Id)
+                                            {
+                                                <button class="btn btn-sm btn-warning" @onclick="() => ShowResetPasswordDialog(user.Id, user.UserName!)">Reset Password</button>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">(Current User)</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@if (showResetPasswordDialog)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reset Password for @resetPasswordUsername</h5>
+                    <button type="button" class="btn-close" @onclick="CancelResetPassword"></button>
+                </div>
+                <EditForm Model="resetPasswordModel" OnValidSubmit="ResetUserPassword" FormName="resetPassword">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <ValidationSummary class="text-danger" />
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="resetPasswordModel.NewPassword" class="form-control" placeholder="New password" />
+                            <label>New Password</label>
+                            <ValidationMessage For="() => resetPasswordModel.NewPassword" />
+                        </div>
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="resetPasswordModel.ConfirmPassword" class="form-control" placeholder="Confirm password" />
+                            <label>Confirm Password</label>
+                            <ValidationMessage For="() => resetPasswordModel.ConfirmPassword" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelResetPassword">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Reset Password</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ApplicationUser? currentUser;
+    private List<ApplicationUser> allUsers = new();
+    private string? changePasswordMessage;
+    private string? changePasswordError;
+    private string? resetPasswordMessage;
+    private string? resetPasswordError;
+    private bool showResetPasswordDialog = false;
+    private string? resetPasswordUserId;
+    private string? resetPasswordUsername;
+
+    [SupplyParameterFromForm]
+    private ChangePasswordInputModel changePasswordInput { get; set; } = new();
+
+    [SupplyParameterFromForm]
+    private ResetPasswordModel resetPasswordModel { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            currentUser = await UserManager.GetUserAsync(user);
+            
+            if (currentUser?.IsAdministrator == true)
+            {
+                await LoadAllUsers();
+            }
+        }
+    }
+
+    private Task LoadAllUsers()
+    {
+        allUsers = UserManager.Users.ToList();
+        return Task.CompletedTask;
+    }
+
+    private async Task OnChangePasswordAsync()
+    {
+        if (currentUser == null) return;
+        
+        var changePasswordResult = await UserManager.ChangePasswordAsync(currentUser, changePasswordInput.OldPassword, changePasswordInput.NewPassword);
+        if (!changePasswordResult.Succeeded)
+        {
+            changePasswordError = $"Error: {string.Join(", ", changePasswordResult.Errors.Select(error => error.Description))}";
+            changePasswordMessage = null;
+            return;
+        }
+
+        await SignInManager.RefreshSignInAsync(currentUser);
+        Logger.LogInformation("User {Username} changed their password successfully.", currentUser.UserName);
+
+        changePasswordMessage = "Your password has been changed successfully.";
+        changePasswordError = null;
+        changePasswordInput = new ChangePasswordInputModel();
+    }
+
+    private void ShowResetPasswordDialog(string userId, string username)
+    {
+        resetPasswordUserId = userId;
+        resetPasswordUsername = username;
+        resetPasswordModel = new ResetPasswordModel();
+        showResetPasswordDialog = true;
+        resetPasswordMessage = null;
+        resetPasswordError = null;
+    }
+
+    private void CancelResetPassword()
+    {
+        showResetPasswordDialog = false;
+        resetPasswordUserId = null;
+        resetPasswordUsername = null;
+        resetPasswordModel = new ResetPasswordModel();
+    }
+
+    private async Task ResetUserPassword()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(resetPasswordUserId))
+            {
+                resetPasswordError = "User not found.";
+                return;
+            }
+
+            var user = await UserManager.FindByIdAsync(resetPasswordUserId);
+            if (user != null)
+            {
+                // Remove existing password and set new one
+                var removePasswordResult = await UserManager.RemovePasswordAsync(user);
+                if (!removePasswordResult.Succeeded)
+                {
+                    resetPasswordError = $"Error resetting password: {string.Join(", ", removePasswordResult.Errors.Select(e => e.Description))}";
+                    return;
+                }
+
+                var addPasswordResult = await UserManager.AddPasswordAsync(user, resetPasswordModel.NewPassword);
+                if (addPasswordResult.Succeeded)
+                {
+                    resetPasswordMessage = $"Password for user {user.UserName} has been reset successfully.";
+                    resetPasswordError = null;
+                    showResetPasswordDialog = false;
+                    Logger.LogInformation("Administrator {AdminUsername} reset password for user {Username}", currentUser?.UserName, user.UserName);
+                }
+                else
+                {
+                    resetPasswordError = $"Error setting new password: {string.Join(", ", addPasswordResult.Errors.Select(e => e.Description))}";
+                }
+            }
+            else
+            {
+                resetPasswordError = "User not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            resetPasswordError = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Error resetting user password");
+        }
+    }
+
+    private sealed class ChangePasswordInputModel
+    {
+        [Required]
+        [DataType(DataType.Password)]
+        [Display(Name = "Current password")]
+        public string OldPassword { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "New password")]
+        public string NewPassword { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm new password")]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+
+    public class ResetPasswordModel
+    {
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        public string NewPassword { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}
