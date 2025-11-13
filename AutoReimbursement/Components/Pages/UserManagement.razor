@@ -40,9 +40,9 @@ else
                 <ValidationSummary class="text-danger" />
                 
                 <div class="form-floating mb-3">
-                    <InputText @bind-Value="newUserModel.Email" class="form-control" placeholder="email@example.com" />
-                    <label>Email</label>
-                    <ValidationMessage For="() => newUserModel.Email" />
+                    <InputText @bind-Value="newUserModel.Username" class="form-control" placeholder="username" />
+                    <label>Username</label>
+                    <ValidationMessage For="() => newUserModel.Username" />
                 </div>
                 
                 <div class="form-floating mb-3">
@@ -69,7 +69,7 @@ else
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Email</th>
+                <th>Username</th>
                 <th>Role</th>
                 <th>Actions</th>
             </tr>
@@ -78,7 +78,7 @@ else
             @foreach (var user in users)
             {
                 <tr>
-                    <td>@user.Email</td>
+                    <td>@user.UserName</td>
                     <td>@(user.IsAdministrator ? "Administrator" : "User")</td>
                     <td>
                         @if (user.Id != currentUserId)
@@ -145,8 +145,8 @@ else
         {
             var user = new ApplicationUser
             {
-                UserName = newUserModel.Email,
-                Email = newUserModel.Email,
+                UserName = newUserModel.Username,
+                Email = newUserModel.Username, // Set email same as username for compatibility
                 EmailConfirmed = true,
                 IsAdministrator = newUserModel.IsAdministrator
             };
@@ -155,11 +155,11 @@ else
 
             if (result.Succeeded)
             {
-                statusMessage = $"User {newUserModel.Email} created successfully.";
+                statusMessage = $"User {newUserModel.Username} created successfully.";
                 errorMessage = null;
                 newUserModel = new NewUserModel();
                 await LoadUsers();
-                Logger.LogInformation("User {Email} created by administrator", user.Email);
+                Logger.LogInformation("User {Username} created by administrator", user.UserName);
             }
             else
             {
@@ -185,10 +185,10 @@ else
                 var result = await UserManager.DeleteAsync(user);
                 if (result.Succeeded)
                 {
-                    statusMessage = $"User {user.Email} deleted successfully.";
+                    statusMessage = $"User {user.UserName} deleted successfully.";
                     errorMessage = null;
                     await LoadUsers();
-                    Logger.LogInformation("User {Email} deleted by administrator", user.Email);
+                    Logger.LogInformation("User {Username} deleted by administrator", user.UserName);
                 }
                 else
                 {
@@ -208,8 +208,7 @@ else
     public class NewUserModel
     {
         [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
+        public string Username { get; set; } = "";
 
         [Required]
         [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
