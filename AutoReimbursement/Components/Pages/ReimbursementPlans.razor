@@ -1,0 +1,491 @@
+@page "/reimbursement-plans"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using AutoReimbursement.Data
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject ILogger<ReimbursementPlans> Logger
+@rendermode InteractiveServer
+
+@attribute [Authorize]
+
+<PageTitle>Reimbursement Plans</PageTitle>
+
+<h1>Reimbursement Plans</h1>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert-info">@statusMessage</div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h3>Create New Plan</h3>
+        <EditForm Model="newPlanModel" OnValidSubmit="CreatePlan" FormName="createPlan">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+            
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="newPlanModel.Name" class="form-control" placeholder="Plan name" />
+                <label>Plan Name</label>
+                <ValidationMessage For="() => newPlanModel.Name" />
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Create Plan</button>
+        </EditForm>
+    </div>
+</div>
+
+<hr />
+
+<h3>Your Plans</h3>
+@if (plans.Any())
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Created Date</th>
+                <th>Invoices</th>
+                <th style="width: 250px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var plan in plans)
+            {
+                <tr>
+                    <td>@plan.Name</td>
+                    <td>@plan.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@plan.Invoices.Count</td>
+                    <td>
+                        <button class="btn btn-sm btn-info me-2" @onclick="() => ViewPlanDetails(plan.Id)">View Details</button>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowEditDialog(plan)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeletePlan(plan.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No reimbursement plans yet. Create one to get started!</p>
+}
+
+@if (showEditDialog && editingPlan != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Plan: @editingPlan.Name</h5>
+                    <button type="button" class="btn-close" @onclick="CancelEdit"></button>
+                </div>
+                <EditForm Model="editPlanModel" OnValidSubmit="UpdatePlan" FormName="editPlan">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <ValidationSummary class="text-danger" />
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="editPlanModel.Name" class="form-control" placeholder="Plan name" />
+                            <label>Plan Name</label>
+                            <ValidationMessage For="() => editPlanModel.Name" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDetailsDialog && selectedPlan != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Plan Details: @selectedPlan.Name</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Created:</strong> @selectedPlan.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+                    <hr />
+                    
+                    <h6>Add Invoice</h6>
+                    <EditForm Model="newInvoiceModel" OnValidSubmit="AddInvoice" FormName="addInvoice">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="newInvoiceModel.Description" class="form-control" placeholder="Description" />
+                                    <label>Description</label>
+                                    <ValidationMessage For="() => newInvoiceModel.Description" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-floating mb-3">
+                                    <InputNumber @bind-Value="newInvoiceModel.Amount" class="form-control" placeholder="Amount" />
+                                    <label>Amount</label>
+                                    <ValidationMessage For="() => newInvoiceModel.Amount" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-floating mb-3">
+                                    <InputDate @bind-Value="newInvoiceModel.Date" class="form-control" />
+                                    <label>Date</label>
+                                    <ValidationMessage For="() => newInvoiceModel.Date" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <InputTextArea @bind-Value="newInvoiceModel.Notes" class="form-control" placeholder="Notes" style="height: 80px" />
+                            <label>Notes (optional)</label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-sm btn-success">Add Invoice</button>
+                    </EditForm>
+                    
+                    <hr />
+                    
+                    <h6>Invoices (@selectedPlan.Invoices.Count)</h6>
+                    @if (selectedPlan.Invoices.Any())
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var invoice in selectedPlan.Invoices.OrderByDescending(i => i.Date))
+                                {
+                                    <tr>
+                                        <td>@invoice.Description</td>
+                                        <td>$@invoice.Amount.ToString("N2")</td>
+                                        <td>@invoice.Date.ToString("yyyy-MM-dd")</td>
+                                        <td>@(invoice.Notes ?? "-")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteInvoice(invoice.Id)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total</th>
+                                    <th>$@selectedPlan.Invoices.Sum(i => i.Amount).ToString("N2")</th>
+                                    <th colspan="3"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    }
+                    else
+                    {
+                        <p>No invoices yet. Add one above to get started!</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? currentUserId;
+    private List<ReimbursementPlan> plans = new();
+    private string? statusMessage;
+    private string? errorMessage;
+    private bool showEditDialog = false;
+    private bool showDetailsDialog = false;
+    private ReimbursementPlan? editingPlan;
+    private ReimbursementPlan? selectedPlan;
+
+    [SupplyParameterFromForm]
+    private NewPlanModel newPlanModel { get; set; } = new();
+
+    [SupplyParameterFromForm]
+    private EditPlanModel editPlanModel { get; set; } = new();
+
+    [SupplyParameterFromForm]
+    private NewInvoiceModel newInvoiceModel { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var currentUser = await UserManager.GetUserAsync(user);
+                if (currentUser != null)
+                {
+                    currentUserId = currentUser.Id;
+                    await LoadPlans();
+                }
+            }
+        }
+    }
+
+    private async Task LoadPlans()
+    {
+        if (string.IsNullOrEmpty(currentUserId)) return;
+        
+        plans = await DbContext.ReimbursementPlans
+            .Include(p => p.Invoices)
+            .Where(p => p.UserId == currentUserId)
+            .OrderByDescending(p => p.CreatedDate)
+            .ToListAsync();
+    }
+
+    private async Task CreatePlan()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                errorMessage = "User not authenticated.";
+                return;
+            }
+
+            var plan = new ReimbursementPlan
+            {
+                Name = newPlanModel.Name,
+                CreatedDate = DateTime.UtcNow,
+                UserId = currentUserId
+            };
+
+            DbContext.ReimbursementPlans.Add(plan);
+            await DbContext.SaveChangesAsync();
+
+            statusMessage = $"Plan '{newPlanModel.Name}' created successfully.";
+            errorMessage = null;
+            newPlanModel = new NewPlanModel();
+            await LoadPlans();
+            Logger.LogInformation("Reimbursement plan created: {PlanName}", plan.Name);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating plan: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error creating reimbursement plan");
+        }
+    }
+
+    private void ShowEditDialog(ReimbursementPlan plan)
+    {
+        editingPlan = plan;
+        editPlanModel = new EditPlanModel { Name = plan.Name };
+        showEditDialog = true;
+        statusMessage = null;
+        errorMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        showEditDialog = false;
+        editingPlan = null;
+        editPlanModel = new EditPlanModel();
+    }
+
+    private async Task UpdatePlan()
+    {
+        try
+        {
+            if (editingPlan == null) return;
+
+            var plan = await DbContext.ReimbursementPlans.FindAsync(editingPlan.Id);
+            if (plan != null && plan.UserId == currentUserId)
+            {
+                plan.Name = editPlanModel.Name;
+                await DbContext.SaveChangesAsync();
+
+                statusMessage = $"Plan updated successfully.";
+                errorMessage = null;
+                showEditDialog = false;
+                await LoadPlans();
+                Logger.LogInformation("Reimbursement plan updated: {PlanId}", plan.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating plan: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error updating reimbursement plan");
+        }
+    }
+
+    private async Task DeletePlan(int planId)
+    {
+        try
+        {
+            var plan = await DbContext.ReimbursementPlans
+                .Include(p => p.Invoices)
+                .FirstOrDefaultAsync(p => p.Id == planId && p.UserId == currentUserId);
+                
+            if (plan != null)
+            {
+                DbContext.ReimbursementPlans.Remove(plan);
+                await DbContext.SaveChangesAsync();
+
+                statusMessage = $"Plan '{plan.Name}' deleted successfully.";
+                errorMessage = null;
+                await LoadPlans();
+                Logger.LogInformation("Reimbursement plan deleted: {PlanId}", planId);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting plan: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error deleting reimbursement plan");
+        }
+    }
+
+    private async Task ViewPlanDetails(int planId)
+    {
+        selectedPlan = await DbContext.ReimbursementPlans
+            .Include(p => p.Invoices)
+            .FirstOrDefaultAsync(p => p.Id == planId && p.UserId == currentUserId);
+            
+        if (selectedPlan != null)
+        {
+            showDetailsDialog = true;
+            newInvoiceModel = new NewInvoiceModel { Date = DateTime.Today };
+            statusMessage = null;
+            errorMessage = null;
+        }
+    }
+
+    private void CloseDetailsDialog()
+    {
+        showDetailsDialog = false;
+        selectedPlan = null;
+        newInvoiceModel = new NewInvoiceModel();
+    }
+
+    private async Task AddInvoice()
+    {
+        try
+        {
+            if (selectedPlan == null) return;
+
+            var invoice = new Invoice
+            {
+                ReimbursementPlanId = selectedPlan.Id,
+                Description = newInvoiceModel.Description,
+                Amount = newInvoiceModel.Amount,
+                Date = newInvoiceModel.Date,
+                Notes = newInvoiceModel.Notes
+            };
+
+            DbContext.Invoices.Add(invoice);
+            await DbContext.SaveChangesAsync();
+
+            statusMessage = "Invoice added successfully.";
+            errorMessage = null;
+            newInvoiceModel = new NewInvoiceModel { Date = DateTime.Today };
+            
+            // Reload the selected plan to show the new invoice
+            selectedPlan = await DbContext.ReimbursementPlans
+                .Include(p => p.Invoices)
+                .FirstOrDefaultAsync(p => p.Id == selectedPlan.Id);
+                
+            await LoadPlans();
+            Logger.LogInformation("Invoice added to plan {PlanId}", selectedPlan?.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error adding invoice: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error adding invoice");
+        }
+    }
+
+    private async Task DeleteInvoice(int invoiceId)
+    {
+        try
+        {
+            var invoice = await DbContext.Invoices.FindAsync(invoiceId);
+            if (invoice != null)
+            {
+                DbContext.Invoices.Remove(invoice);
+                await DbContext.SaveChangesAsync();
+
+                statusMessage = "Invoice deleted successfully.";
+                errorMessage = null;
+                
+                // Reload the selected plan to update the invoice list
+                if (selectedPlan != null)
+                {
+                    selectedPlan = await DbContext.ReimbursementPlans
+                        .Include(p => p.Invoices)
+                        .FirstOrDefaultAsync(p => p.Id == selectedPlan.Id);
+                }
+                
+                await LoadPlans();
+                Logger.LogInformation("Invoice deleted: {InvoiceId}", invoiceId);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting invoice: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error deleting invoice");
+        }
+    }
+
+    public class NewPlanModel
+    {
+        [Required]
+        [StringLength(200)]
+        public string Name { get; set; } = "";
+    }
+
+    public class EditPlanModel
+    {
+        [Required]
+        [StringLength(200)]
+        public string Name { get; set; } = "";
+    }
+
+    public class NewInvoiceModel
+    {
+        [Required]
+        [StringLength(500)]
+        public string Description { get; set; } = "";
+
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        [Required]
+        public DateTime Date { get; set; } = DateTime.Today;
+
+        [StringLength(1000)]
+        public string? Notes { get; set; }
+    }
+}
