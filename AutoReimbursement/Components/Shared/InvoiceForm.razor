@@ -1,0 +1,324 @@
+@using AutoReimbursement.Data
+@using AutoReimbursement.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IInvoiceStorageService StorageService
+@inject IInvoiceLLMService LLMService
+@inject ILogger<InvoiceForm> Logger
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">@(EditMode ? "Edit Invoice" : "Add Invoice")</h3>
+    </div>
+    <div class="card-body">
+        <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="@FormName">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            @if (isProcessingPdf)
+            {
+                <div class="alert alert-info">
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Processing PDF...
+                </div>
+            }
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Model.SerialNumber" class="form-control" placeholder="Serial Number" />
+                        <label>Serial Number</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating mb-3">
+                        <InputDate @bind-Value="Model.Date" class="form-control" />
+                        <label>Date *</label>
+                        <ValidationMessage For="() => Model.Date" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Model.Description" class="form-control" placeholder="Description" />
+                <label>Description *</label>
+                <ValidationMessage For="() => Model.Description" />
+            </div>
+
+            <div class="form-floating mb-3">
+                <InputTextArea @bind-Value="Model.Notes" class="form-control" placeholder="Notes" style="height: 80px" />
+                <label>Notes (optional)</label>
+            </div>
+
+            <!-- PDF Upload Section -->
+            <div class="mb-3">
+                <label class="form-label">Upload PDF Invoice (optional)</label>
+                <InputFile OnChange="HandlePdfUpload" accept=".pdf" class="form-control" disabled="@isProcessingPdf" />
+                <small class="form-text text-muted">Upload a PDF to auto-extract invoice details</small>
+                @if (!string.IsNullOrEmpty(Model.PdfFileName))
+                {
+                    <div class="mt-2">
+                        <span class="badge bg-success">PDF uploaded: @Model.PdfFileName</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Invoice Items Section -->
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">Invoice Items</h5>
+                    <button type="button" class="btn btn-sm btn-primary" @onclick="AddInvoiceItem">
+                        <span class="bi bi-plus-circle"></span> Add Item
+                    </button>
+                </div>
+
+                @if (Model.Items.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Name *</th>
+                                    <th>Specification</th>
+                                    <th>Unit</th>
+                                    <th>Amount</th>
+                                    <th>Unit Price</th>
+                                    <th>Price (No Tax) *</th>
+                                    <th>Tax *</th>
+                                    <th>Total</th>
+                                    <th style="width: 50px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.Items.Count; i++)
+                                {
+                                    var index = i;
+                                    var item = Model.Items[index];
+                                    <tr>
+                                        <td>
+                                            <InputText @bind-Value="item.Name" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <InputText @bind-Value="item.Specification" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <InputText @bind-Value="item.Unit" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <InputNumber @bind-Value="item.Amount" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <InputNumber @bind-Value="item.UnitPrice" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <InputNumber @bind-Value="item.TotalPriceWithoutTax" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <InputNumber @bind-Value="item.Tax" class="form-control form-control-sm" />
+                                        </td>
+                                        <td class="text-end">
+                                            @((item.TotalPriceWithoutTax + item.Tax).ToString("N2"))
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveInvoiceItem(index)">
+                                                <span class="bi bi-trash"></span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="7" class="text-end">Total Amount:</th>
+                                    <th class="text-end">$@CalculateTotalAmount().ToString("N2")</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">No items added yet. Click "Add Item" to start.</div>
+                }
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success" disabled="@isProcessingPdf">
+                    @(EditMode ? "Update Invoice" : "Add Invoice")
+                </button>
+                @if (OnCancel.HasDelegate)
+                {
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                }
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public InvoiceFormModel Model { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<InvoiceFormModel> OnSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public bool EditMode { get; set; } = false;
+
+    [Parameter]
+    public string FormName { get; set; } = "invoiceForm";
+
+    private bool isProcessingPdf = false;
+    private string? errorMessage;
+
+    private void AddInvoiceItem()
+    {
+        Model.Items.Add(new InvoiceItemModel
+        {
+            Name = "",
+            TotalPriceWithoutTax = 0,
+            Tax = 0
+        });
+    }
+
+    private void RemoveInvoiceItem(int index)
+    {
+        if (index >= 0 && index < Model.Items.Count)
+        {
+            Model.Items.RemoveAt(index);
+        }
+    }
+
+    private decimal CalculateTotalAmount()
+    {
+        return Model.Items.Sum(i => i.TotalPriceWithoutTax + i.Tax);
+    }
+
+    private async Task HandlePdfUpload(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        isProcessingPdf = true;
+
+        try
+        {
+            var file = e.File;
+            
+            if (file.ContentType != "application/pdf")
+            {
+                errorMessage = "Please upload a PDF file.";
+                return;
+            }
+
+            // Store the PDF
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
+            var pdfPath = await StorageService.StorePdfAsync(stream, file.Name);
+            Model.PdfFilePath = pdfPath;
+            Model.PdfFileName = file.Name;
+
+            // Extract data using LLM
+            stream.Position = 0;
+            var extractedData = await LLMService.ExtractInvoiceDataAsync(stream);
+
+            // Auto-fill fields
+            if (!string.IsNullOrEmpty(extractedData.SerialNumber))
+                Model.SerialNumber = extractedData.SerialNumber;
+            
+            if (extractedData.Date.HasValue)
+                Model.Date = extractedData.Date.Value;
+            
+            if (!string.IsNullOrEmpty(extractedData.Description))
+                Model.Description = extractedData.Description;
+
+            // Clear existing items and add extracted items
+            Model.Items.Clear();
+            foreach (var item in extractedData.Items)
+            {
+                Model.Items.Add(new InvoiceItemModel
+                {
+                    Name = item.Name,
+                    Specification = item.Specification,
+                    Unit = item.Unit,
+                    Amount = item.Amount,
+                    UnitPrice = item.UnitPrice,
+                    TotalPriceWithoutTax = item.TotalPriceWithoutTax,
+                    Tax = item.Tax
+                });
+            }
+
+            Logger.LogInformation("PDF processed and data extracted successfully");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing PDF: {ex.Message}";
+            Logger.LogError(ex, "Error processing PDF");
+        }
+        finally
+        {
+            isProcessingPdf = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Calculate total amount from items
+        Model.Amount = CalculateTotalAmount();
+        
+        if (OnSubmit.HasDelegate)
+        {
+            await OnSubmit.InvokeAsync(Model);
+        }
+    }
+
+    public class InvoiceFormModel
+    {
+        public string? SerialNumber { get; set; }
+
+        [Required]
+        [StringLength(500)]
+        public string Description { get; set; } = "";
+
+        [Required]
+        public DateTime Date { get; set; } = DateTime.Today;
+
+        [StringLength(1000)]
+        public string? Notes { get; set; }
+
+        public string? PdfFilePath { get; set; }
+        public string? PdfFileName { get; set; }
+
+        public decimal Amount { get; set; }
+
+        public List<InvoiceItemModel> Items { get; set; } = new();
+    }
+
+    public class InvoiceItemModel
+    {
+        [Required]
+        [StringLength(200)]
+        public string Name { get; set; } = "";
+
+        [StringLength(200)]
+        public string? Specification { get; set; }
+
+        [StringLength(50)]
+        public string? Unit { get; set; }
+
+        public decimal? Amount { get; set; }
+
+        public decimal? UnitPrice { get; set; }
+
+        [Required]
+        public decimal TotalPriceWithoutTax { get; set; }
+
+        [Required]
+        public decimal Tax { get; set; }
+    }
+}

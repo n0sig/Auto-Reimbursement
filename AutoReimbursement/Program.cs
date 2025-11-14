@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using AutoReimbursement.Components;
 using AutoReimbursement.Components.Account;
 using AutoReimbursement.Data;
+using AutoReimbursement.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,10 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// Register invoice services
+builder.Services.AddScoped<IInvoiceStorageService, InvoiceStorageService>();
+builder.Services.AddScoped<IInvoiceLLMService, InvoiceLLMService>();
 
 // Add authorization policies
 builder.Services.AddAuthorizationCore(options =>

@@ -9,6 +9,9 @@ public class Invoice
     
     public int ReimbursementPlanId { get; set; }
     
+    [StringLength(100)]
+    public string? SerialNumber { get; set; }
+    
     [Required]
     [StringLength(500)]
     public string Description { get; set; } = string.Empty;
@@ -21,6 +24,10 @@ public class Invoice
     [StringLength(1000)]
     public string? Notes { get; set; }
     
-    // Navigation property
+    [StringLength(500)]
+    public string? PdfFilePath { get; set; }
+    
+    // Navigation properties
     public ReimbursementPlan ReimbursementPlan { get; set; } = null!;
+    public ICollection<InvoiceItem> InvoiceItems { get; set; } = new List<InvoiceItem>();
 }
