@@ -5,4 +5,6 @@ namespace AutoReimbursement.Data;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<ReimbursementPlan> ReimbursementPlans { get; set; }
+    public DbSet<Invoice> Invoices { get; set; }
 }
