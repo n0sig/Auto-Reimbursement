@@ -45,7 +45,7 @@
 
 <hr />
 
-<h3>Your Plans</h3>
+<h3>All Plans</h3>
 @if (plans.Any())
 {
     <table class="table table-striped">
@@ -146,11 +146,8 @@ else
 
     private async Task LoadPlans()
     {
-        if (string.IsNullOrEmpty(currentUserId)) return;
-        
         plans = await DbContext.ReimbursementPlans
             .Include(p => p.Invoices)
-            .Where(p => p.UserId == currentUserId)
             .OrderByDescending(p => p.CreatedDate)
             .ToListAsync();
     }
@@ -159,17 +156,10 @@ else
     {
         try
         {
-            if (string.IsNullOrEmpty(currentUserId))
-            {
-                errorMessage = "User not authenticated.";
-                return;
-            }
-
             var plan = new ReimbursementPlan
             {
                 Name = newPlanModel.Name,
-                CreatedDate = DateTime.UtcNow,
-                UserId = currentUserId
+                CreatedDate = DateTime.UtcNow
             };
 
             DbContext.ReimbursementPlans.Add(plan);
@@ -212,7 +202,7 @@ else
             if (editingPlan == null) return;
 
             var plan = await DbContext.ReimbursementPlans.FindAsync(editingPlan.Id);
-            if (plan != null && plan.UserId == currentUserId)
+            if (plan != null)
             {
                 plan.Name = editPlanModel.Name;
                 await DbContext.SaveChangesAsync();
@@ -238,7 +228,7 @@ else
         {
             var plan = await DbContext.ReimbursementPlans
                 .Include(p => p.Invoices)
-                .FirstOrDefaultAsync(p => p.Id == planId && p.UserId == currentUserId);
+                .FirstOrDefaultAsync(p => p.Id == planId);
                 
             if (plan != null)
             {
