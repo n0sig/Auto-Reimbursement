@@ -7,9 +7,14 @@
 
 <div class="card">
     <div class="card-header">
-        <h3 class="mb-0">@(EditMode ? "Edit Invoice" : "Add Invoice")</h3>
+        <button class="btn btn-link text-decoration-none w-100 text-start d-flex justify-content-between align-items-center p-0" 
+                type="button" 
+                @onclick="ToggleCollapse">
+            <h3 class="mb-0">@(EditMode ? "Edit Invoice" : "Add Invoice")</h3>
+            <span class="bi @(isCollapsed ? "bi-chevron-down" : "bi-chevron-up")"></span>
+        </button>
     </div>
-    <div class="card-body">
+    <div class="card-body @(isCollapsed ? "d-none" : "")"
         <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="@FormName">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" />
@@ -37,16 +42,36 @@
                 <div class="col-md-6">
                     <div class="form-floating mb-3">
                         <InputDate @bind-Value="Model.Date" class="form-control" />
-                        <label>Date *</label>
-                        <ValidationMessage For="() => Model.Date" />
+                        <label>Date</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-floating mb-3">
+                        <InputSelect @bind-Value="Model.Type" class="form-control">
+                            <option value="">-- Select Type --</option>
+                            <option value="Material">Material</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Others">Others</option>
+                        </InputSelect>
+                        <label>Type *</label>
+                        <ValidationMessage For="() => Model.Type" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating mb-3">
+                        <InputNumber @bind-Value="Model.Amount" class="form-control" placeholder="Amount" />
+                        <label>Amount *</label>
+                        <ValidationMessage For="() => Model.Amount" />
                     </div>
                 </div>
             </div>
 
             <div class="form-floating mb-3">
                 <InputText @bind-Value="Model.Description" class="form-control" placeholder="Description" />
-                <label>Description *</label>
-                <ValidationMessage For="() => Model.Description" />
+                <label>Description</label>
             </div>
 
             <div class="form-floating mb-3">
@@ -178,6 +203,12 @@
 
     private bool isProcessingPdf = false;
     private string? errorMessage;
+    private bool isCollapsed = true;
+
+    private void ToggleCollapse()
+    {
+        isCollapsed = !isCollapsed;
+    }
 
     private void AddInvoiceItem()
     {
@@ -268,8 +299,11 @@
 
     private async Task HandleSubmit()
     {
-        // Calculate total amount from items
-        Model.Amount = CalculateTotalAmount();
+        // If amount not manually set, calculate from items
+        if (Model.Amount == 0 && Model.Items.Any())
+        {
+            Model.Amount = CalculateTotalAmount();
+        }
         
         if (OnSubmit.HasDelegate)
         {
@@ -281,20 +315,23 @@
     {
         public string? SerialNumber { get; set; }
 
-        [Required]
         [StringLength(500)]
-        public string Description { get; set; } = "";
+        public string? Description { get; set; }
 
         [Required]
-        public DateTime Date { get; set; } = DateTime.Today;
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        public DateTime? Date { get; set; }
+
+        [Required(ErrorMessage = "Type is required")]
+        public string Type { get; set; } = "";
 
         [StringLength(1000)]
         public string? Notes { get; set; }
 
         public string? PdfFilePath { get; set; }
         public string? PdfFileName { get; set; }
-
-        public decimal Amount { get; set; }
 
         public List<InvoiceItemModel> Items { get; set; } = new();
     }

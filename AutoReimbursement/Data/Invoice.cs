@@ -12,14 +12,17 @@ public class Invoice
     [StringLength(100)]
     public string? SerialNumber { get; set; }
     
-    [Required]
     [StringLength(500)]
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
     
+    [Required]
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; set; }
     
-    public DateTime Date { get; set; }
+    public DateTime? Date { get; set; }
+    
+    [Required]
+    public InvoiceType Type { get; set; }
     
     [StringLength(1000)]
     public string? Notes { get; set; }

@@ -66,6 +66,7 @@ else
                         <thead>
                             <tr>
                                 <th>Serial #</th>
+                                <th>Type</th>
                                 <th>Description</th>
                                 <th>Amount</th>
                                 <th>Date</th>
@@ -79,9 +80,10 @@ else
                             {
                                 <tr>
                                     <td>@(invoice.SerialNumber ?? "-")</td>
-                                    <td>@invoice.Description</td>
+                                    <td>@invoice.Type</td>
+                                    <td>@(invoice.Description ?? "-")</td>
                                     <td>$@invoice.Amount.ToString("N2")</td>
-                                    <td>@invoice.Date.ToString("yyyy-MM-dd")</td>
+                                    <td>@(invoice.Date?.ToString("yyyy-MM-dd") ?? "-")</td>
                                     <td>@invoice.InvoiceItems.Count items</td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(invoice.PdfFilePath))
@@ -108,7 +110,7 @@ else
                         </tbody>
                         <tfoot>
                             <tr>
-                                <th colspan="2">Total</th>
+                                <th colspan="3">Total</th>
                                 <th>$@plan.Invoices.Sum(i => i.Amount).ToString("N2")</th>
                                 <th colspan="4"></th>
                             </tr>
@@ -129,15 +131,16 @@ else
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Invoice Details - @selectedInvoice.Description</h5>
+                        <h5 class="modal-title">Invoice Details - @(selectedInvoice.Description ?? selectedInvoice.Type.ToString())</h5>
                         <button type="button" class="btn-close" @onclick="CloseInvoiceDetails"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <p><strong>Serial Number:</strong> @(selectedInvoice.SerialNumber ?? "-")</p>
-                                <p><strong>Description:</strong> @selectedInvoice.Description</p>
-                                <p><strong>Date:</strong> @selectedInvoice.Date.ToString("yyyy-MM-dd")</p>
+                                <p><strong>Type:</strong> @selectedInvoice.Type</p>
+                                <p><strong>Description:</strong> @(selectedInvoice.Description ?? "-")</p>
+                                <p><strong>Date:</strong> @(selectedInvoice.Date?.ToString("yyyy-MM-dd") ?? "-")</p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Total Amount:</strong> $@selectedInvoice.Amount.ToString("N2")</p>
@@ -278,6 +281,7 @@ else
                 Description = model.Description,
                 Amount = model.Amount,
                 Date = model.Date,
+                Type = Enum.Parse<InvoiceType>(model.Type),
                 Notes = model.Notes,
                 PdfFilePath = model.PdfFilePath
             };
@@ -302,7 +306,7 @@ else
 
             statusMessage = "Invoice added successfully.";
             errorMessage = null;
-            newInvoiceModel = new InvoiceForm.InvoiceFormModel { Date = DateTime.Today };
+            newInvoiceModel = new InvoiceForm.InvoiceFormModel();
             
             await LoadPlan();
             Logger.LogInformation("Invoice added to plan {PlanId}", plan.Id);
