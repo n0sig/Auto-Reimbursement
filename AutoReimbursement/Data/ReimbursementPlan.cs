@@ -12,10 +12,6 @@ public class ReimbursementPlan
     
     public DateTime CreatedDate { get; set; }
     
-    [Required]
-    public string UserId { get; set; } = string.Empty;
-    
     // Navigation properties
-    public ApplicationUser User { get; set; } = null!;
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

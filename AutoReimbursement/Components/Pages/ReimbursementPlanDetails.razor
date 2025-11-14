@@ -20,14 +20,6 @@
 {
     <p>Loading...</p>
 }
-else if (!isAuthorized)
-{
-    <div class="alert alert-danger">
-        <h4>Access Denied</h4>
-        <p>You don't have permission to view this plan.</p>
-    </div>
-    <a href="/reimbursement-plans" class="btn btn-primary">Back to Plans</a>
-}
 else
 {
     <div class="mb-3">
@@ -226,7 +218,6 @@ else
 
     private string? currentUserId;
     private ReimbursementPlan? plan;
-    private bool isAuthorized = false;
     private string? statusMessage;
     private string? errorMessage;
     private Invoice? selectedInvoice;
@@ -264,26 +255,19 @@ else
 
     private async Task LoadPlan()
     {
-        if (string.IsNullOrEmpty(currentUserId)) return;
-
         plan = await DbContext.ReimbursementPlans
             .Include(p => p.Invoices)
                 .ThenInclude(i => i.InvoiceItems)
             .FirstOrDefaultAsync(p => p.Id == PlanId);
-
-        if (plan != null)
-        {
-            isAuthorized = plan.UserId == currentUserId;
-        }
     }
 
     private async Task AddInvoice(InvoiceForm.InvoiceFormModel model)
     {
         try
         {
-            if (plan == null || !isAuthorized)
+            if (plan == null)
             {
-                errorMessage = "Access denied.";
+                errorMessage = "Plan not found.";
                 return;
             }
 
@@ -335,12 +319,6 @@ else
     {
         try
         {
-            if (!isAuthorized)
-            {
-                errorMessage = "Access denied.";
-                return;
-            }
-
             var invoice = await DbContext.Invoices
                 .Include(i => i.InvoiceItems)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
