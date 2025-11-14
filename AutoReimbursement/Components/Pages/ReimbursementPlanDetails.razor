@@ -2,11 +2,14 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using AutoReimbursement.Data
+@using AutoReimbursement.Services
+@using AutoReimbursement.Components.Shared
 @using Microsoft.EntityFrameworkCore
 @inject UserManager<ApplicationUser> UserManager
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavigationManager
 @inject ILogger<ReimbursementPlanDetails> Logger
+@inject IInvoiceStorageService StorageService
 @rendermode InteractiveServer
 
 @attribute [Authorize]
@@ -53,47 +56,10 @@ else
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            <h3 class="mb-0">Add Invoice</h3>
-        </div>
-        <div class="card-body">
-            <EditForm Model="newInvoiceModel" OnValidSubmit="AddInvoice" FormName="addInvoice">
-                <DataAnnotationsValidator />
-                <ValidationSummary class="text-danger" />
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-floating mb-3">
-                            <InputText @bind-Value="newInvoiceModel.Description" class="form-control" placeholder="Description" />
-                            <label>Description</label>
-                            <ValidationMessage For="() => newInvoiceModel.Description" />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-floating mb-3">
-                            <InputNumber @bind-Value="newInvoiceModel.Amount" class="form-control" placeholder="Amount" />
-                            <label>Amount</label>
-                            <ValidationMessage For="() => newInvoiceModel.Amount" />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-floating mb-3">
-                            <InputDate @bind-Value="newInvoiceModel.Date" class="form-control" />
-                            <label>Date</label>
-                            <ValidationMessage For="() => newInvoiceModel.Date" />
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-floating mb-3">
-                    <InputTextArea @bind-Value="newInvoiceModel.Notes" class="form-control" placeholder="Notes" style="height: 80px" />
-                    <label>Notes (optional)</label>
-                </div>
-                
-                <button type="submit" class="btn btn-success">Add Invoice</button>
-            </EditForm>
-        </div>
+    <div class="mb-4">
+        <InvoiceForm Model="newInvoiceModel" 
+                     OnSubmit="AddInvoice" 
+                     FormName="addInvoice" />
     </div>
 
     <div class="card">
@@ -107,32 +73,52 @@ else
                     <table class="table table-striped">
                         <thead>
                             <tr>
+                                <th>Serial #</th>
                                 <th>Description</th>
                                 <th>Amount</th>
                                 <th>Date</th>
-                                <th>Notes</th>
-                                <th style="width: 100px;">Actions</th>
+                                <th>Items</th>
+                                <th>PDF</th>
+                                <th style="width: 150px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var invoice in plan.Invoices.OrderByDescending(i => i.Date))
                             {
                                 <tr>
+                                    <td>@(invoice.SerialNumber ?? "-")</td>
                                     <td>@invoice.Description</td>
                                     <td>$@invoice.Amount.ToString("N2")</td>
                                     <td>@invoice.Date.ToString("yyyy-MM-dd")</td>
-                                    <td>@(invoice.Notes ?? "-")</td>
+                                    <td>@invoice.InvoiceItems.Count items</td>
                                     <td>
-                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteInvoice(invoice.Id)">Delete</button>
+                                        @if (!string.IsNullOrEmpty(invoice.PdfFilePath))
+                                        {
+                                            <a href="/@invoice.PdfFilePath" target="_blank" class="btn btn-sm btn-info">
+                                                <span class="bi bi-file-pdf"></span> View
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @onclick="() => ViewInvoiceDetails(invoice.Id)">
+                                            <span class="bi bi-eye"></span> Details
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteInvoice(invoice.Id)">
+                                            <span class="bi bi-trash"></span>
+                                        </button>
                                     </td>
                                 </tr>
                             }
                         </tbody>
                         <tfoot>
                             <tr>
-                                <th>Total</th>
+                                <th colspan="2">Total</th>
                                 <th>$@plan.Invoices.Sum(i => i.Amount).ToString("N2")</th>
-                                <th colspan="3"></th>
+                                <th colspan="4"></th>
                             </tr>
                         </tfoot>
                     </table>
@@ -144,6 +130,91 @@ else
             }
         </div>
     </div>
+
+    @if (selectedInvoice != null && showInvoiceDetails)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Invoice Details - @selectedInvoice.Description</h5>
+                        <button type="button" class="btn-close" @onclick="CloseInvoiceDetails"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p><strong>Serial Number:</strong> @(selectedInvoice.SerialNumber ?? "-")</p>
+                                <p><strong>Description:</strong> @selectedInvoice.Description</p>
+                                <p><strong>Date:</strong> @selectedInvoice.Date.ToString("yyyy-MM-dd")</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Amount:</strong> $@selectedInvoice.Amount.ToString("N2")</p>
+                                <p><strong>Notes:</strong> @(selectedInvoice.Notes ?? "-")</p>
+                                @if (!string.IsNullOrEmpty(selectedInvoice.PdfFilePath))
+                                {
+                                    <p>
+                                        <strong>PDF:</strong> 
+                                        <a href="/@selectedInvoice.PdfFilePath" target="_blank" class="btn btn-sm btn-info">
+                                            <span class="bi bi-file-pdf"></span> View PDF
+                                        </a>
+                                    </p>
+                                }
+                            </div>
+                        </div>
+
+                        @if (selectedInvoice.InvoiceItems.Any())
+                        {
+                            <h6>Invoice Items:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Specification</th>
+                                            <th>Unit</th>
+                                            <th>Amount</th>
+                                            <th>Unit Price</th>
+                                            <th>Price (No Tax)</th>
+                                            <th>Tax</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in selectedInvoice.InvoiceItems)
+                                        {
+                                            <tr>
+                                                <td>@item.Name</td>
+                                                <td>@(item.Specification ?? "-")</td>
+                                                <td>@(item.Unit ?? "-")</td>
+                                                <td>@(item.Amount?.ToString("N2") ?? "-")</td>
+                                                <td>@(item.UnitPrice.HasValue ? $"${item.UnitPrice:N2}" : "-")</td>
+                                                <td>$@item.TotalPriceWithoutTax.ToString("N2")</td>
+                                                <td>$@item.Tax.ToString("N2")</td>
+                                                <td>$@((item.TotalPriceWithoutTax + item.Tax).ToString("N2"))</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th colspan="7" class="text-end">Total:</th>
+                                            <th>$@selectedInvoice.InvoiceItems.Sum(i => i.TotalPriceWithoutTax + i.Tax).ToString("N2")</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No items in this invoice.</p>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseInvoiceDetails">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -158,9 +229,11 @@ else
     private bool isAuthorized = false;
     private string? statusMessage;
     private string? errorMessage;
+    private Invoice? selectedInvoice;
+    private bool showInvoiceDetails = false;
 
     [SupplyParameterFromForm]
-    private NewInvoiceModel newInvoiceModel { get; set; } = new();
+    private InvoiceForm.InvoiceFormModel newInvoiceModel { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -195,6 +268,7 @@ else
 
         plan = await DbContext.ReimbursementPlans
             .Include(p => p.Invoices)
+                .ThenInclude(i => i.InvoiceItems)
             .FirstOrDefaultAsync(p => p.Id == PlanId);
 
         if (plan != null)
@@ -203,7 +277,7 @@ else
         }
     }
 
-    private async Task AddInvoice()
+    private async Task AddInvoice(InvoiceForm.InvoiceFormModel model)
     {
         try
         {
@@ -216,18 +290,35 @@ else
             var invoice = new Invoice
             {
                 ReimbursementPlanId = plan.Id,
-                Description = newInvoiceModel.Description,
-                Amount = newInvoiceModel.Amount,
-                Date = newInvoiceModel.Date,
-                Notes = newInvoiceModel.Notes
+                SerialNumber = model.SerialNumber,
+                Description = model.Description,
+                Amount = model.Amount,
+                Date = model.Date,
+                Notes = model.Notes,
+                PdfFilePath = model.PdfFilePath
             };
+
+            // Add invoice items
+            foreach (var itemModel in model.Items)
+            {
+                invoice.InvoiceItems.Add(new InvoiceItem
+                {
+                    Name = itemModel.Name,
+                    Specification = itemModel.Specification,
+                    Unit = itemModel.Unit,
+                    Amount = itemModel.Amount,
+                    UnitPrice = itemModel.UnitPrice,
+                    TotalPriceWithoutTax = itemModel.TotalPriceWithoutTax,
+                    Tax = itemModel.Tax
+                });
+            }
 
             DbContext.Invoices.Add(invoice);
             await DbContext.SaveChangesAsync();
 
             statusMessage = "Invoice added successfully.";
             errorMessage = null;
-            newInvoiceModel = new NewInvoiceModel { Date = DateTime.Today };
+            newInvoiceModel = new InvoiceForm.InvoiceFormModel { Date = DateTime.Today };
             
             await LoadPlan();
             Logger.LogInformation("Invoice added to plan {PlanId}", plan.Id);
@@ -250,9 +341,25 @@ else
                 return;
             }
 
-            var invoice = await DbContext.Invoices.FindAsync(invoiceId);
+            var invoice = await DbContext.Invoices
+                .Include(i => i.InvoiceItems)
+                .FirstOrDefaultAsync(i => i.Id == invoiceId);
+                
             if (invoice != null)
             {
+                // Delete PDF file if exists
+                if (!string.IsNullOrEmpty(invoice.PdfFilePath))
+                {
+                    try
+                    {
+                        await StorageService.DeletePdfAsync(invoice.PdfFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "Error deleting PDF file for invoice {InvoiceId}", invoiceId);
+                    }
+                }
+
                 DbContext.Invoices.Remove(invoice);
                 await DbContext.SaveChangesAsync();
 
@@ -271,20 +378,18 @@ else
         }
     }
 
-    public class NewInvoiceModel
+    private async Task ViewInvoiceDetails(int invoiceId)
     {
-        [Required]
-        [StringLength(500)]
-        public string Description { get; set; } = "";
+        selectedInvoice = await DbContext.Invoices
+            .Include(i => i.InvoiceItems)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId);
+        
+        showInvoiceDetails = true;
+    }
 
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
-        public decimal Amount { get; set; }
-
-        [Required]
-        public DateTime Date { get; set; } = DateTime.Today;
-
-        [StringLength(1000)]
-        public string? Notes { get; set; }
+    private void CloseInvoiceDetails()
+    {
+        showInvoiceDetails = false;
+        selectedInvoice = null;
     }
 }
