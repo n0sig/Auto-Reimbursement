@@ -4,11 +4,13 @@
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
 @using AutoReimbursement.Data
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Log in</PageTitle>
 
@@ -55,6 +57,20 @@
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if user is already authenticated
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            // Redirect authenticated users to Reimbursement Plans page
+            var redirectUrl = string.IsNullOrEmpty(ReturnUrl) 
+                ? "/reimbursement-plans" 
+                : ReturnUrl;
+            NavigationManager.NavigateTo(redirectUrl);
+        }
+    }
 
     public async Task LoginUser()
     {
