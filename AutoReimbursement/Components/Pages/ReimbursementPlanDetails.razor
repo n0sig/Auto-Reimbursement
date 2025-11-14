@@ -1,0 +1,290 @@
+@page "/reimbursement-plans/{PlanId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using AutoReimbursement.Data
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject ILogger<ReimbursementPlanDetails> Logger
+@rendermode InteractiveServer
+
+@attribute [Authorize]
+
+<PageTitle>@(plan?.Name ?? "Plan Details")</PageTitle>
+
+@if (plan == null)
+{
+    <p>Loading...</p>
+}
+else if (!isAuthorized)
+{
+    <div class="alert alert-danger">
+        <h4>Access Denied</h4>
+        <p>You don't have permission to view this plan.</p>
+    </div>
+    <a href="/reimbursement-plans" class="btn btn-primary">Back to Plans</a>
+}
+else
+{
+    <div class="mb-3">
+        <a href="/reimbursement-plans" class="btn btn-secondary">
+            <span class="bi bi-arrow-left"></span> Back to Plans
+        </a>
+    </div>
+
+    <h1>@plan.Name</h1>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert alert-info">@statusMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p class="card-text"><strong>Created:</strong> @plan.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+            <p class="card-text"><strong>Total Invoices:</strong> @plan.Invoices.Count</p>
+            <p class="card-text"><strong>Total Amount:</strong> $@plan.Invoices.Sum(i => i.Amount).ToString("N2")</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Add Invoice</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="newInvoiceModel" OnValidSubmit="AddInvoice" FormName="addInvoice">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="newInvoiceModel.Description" class="form-control" placeholder="Description" />
+                            <label>Description</label>
+                            <ValidationMessage For="() => newInvoiceModel.Description" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <InputNumber @bind-Value="newInvoiceModel.Amount" class="form-control" placeholder="Amount" />
+                            <label>Amount</label>
+                            <ValidationMessage For="() => newInvoiceModel.Amount" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <InputDate @bind-Value="newInvoiceModel.Date" class="form-control" />
+                            <label>Date</label>
+                            <ValidationMessage For="() => newInvoiceModel.Date" />
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-floating mb-3">
+                    <InputTextArea @bind-Value="newInvoiceModel.Notes" class="form-control" placeholder="Notes" style="height: 80px" />
+                    <label>Notes (optional)</label>
+                </div>
+                
+                <button type="submit" class="btn btn-success">Add Invoice</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0">Invoices (@plan.Invoices.Count)</h3>
+        </div>
+        <div class="card-body">
+            @if (plan.Invoices.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Notes</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var invoice in plan.Invoices.OrderByDescending(i => i.Date))
+                            {
+                                <tr>
+                                    <td>@invoice.Description</td>
+                                    <td>$@invoice.Amount.ToString("N2")</td>
+                                    <td>@invoice.Date.ToString("yyyy-MM-dd")</td>
+                                    <td>@(invoice.Notes ?? "-")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteInvoice(invoice.Id)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th>Total</th>
+                                <th>$@plan.Invoices.Sum(i => i.Amount).ToString("N2")</th>
+                                <th colspan="3"></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p>No invoices yet. Add one above to get started!</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int PlanId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? currentUserId;
+    private ReimbursementPlan? plan;
+    private bool isAuthorized = false;
+    private string? statusMessage;
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private NewInvoiceModel newInvoiceModel { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask != null)
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var currentUser = await UserManager.GetUserAsync(user);
+                if (currentUser != null)
+                {
+                    currentUserId = currentUser.Id;
+                    await LoadPlan();
+                }
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(currentUserId))
+        {
+            await LoadPlan();
+        }
+    }
+
+    private async Task LoadPlan()
+    {
+        if (string.IsNullOrEmpty(currentUserId)) return;
+
+        plan = await DbContext.ReimbursementPlans
+            .Include(p => p.Invoices)
+            .FirstOrDefaultAsync(p => p.Id == PlanId);
+
+        if (plan != null)
+        {
+            isAuthorized = plan.UserId == currentUserId;
+        }
+    }
+
+    private async Task AddInvoice()
+    {
+        try
+        {
+            if (plan == null || !isAuthorized)
+            {
+                errorMessage = "Access denied.";
+                return;
+            }
+
+            var invoice = new Invoice
+            {
+                ReimbursementPlanId = plan.Id,
+                Description = newInvoiceModel.Description,
+                Amount = newInvoiceModel.Amount,
+                Date = newInvoiceModel.Date,
+                Notes = newInvoiceModel.Notes
+            };
+
+            DbContext.Invoices.Add(invoice);
+            await DbContext.SaveChangesAsync();
+
+            statusMessage = "Invoice added successfully.";
+            errorMessage = null;
+            newInvoiceModel = new NewInvoiceModel { Date = DateTime.Today };
+            
+            await LoadPlan();
+            Logger.LogInformation("Invoice added to plan {PlanId}", plan.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error adding invoice: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error adding invoice");
+        }
+    }
+
+    private async Task DeleteInvoice(int invoiceId)
+    {
+        try
+        {
+            if (!isAuthorized)
+            {
+                errorMessage = "Access denied.";
+                return;
+            }
+
+            var invoice = await DbContext.Invoices.FindAsync(invoiceId);
+            if (invoice != null)
+            {
+                DbContext.Invoices.Remove(invoice);
+                await DbContext.SaveChangesAsync();
+
+                statusMessage = "Invoice deleted successfully.";
+                errorMessage = null;
+                
+                await LoadPlan();
+                Logger.LogInformation("Invoice deleted: {InvoiceId}", invoiceId);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting invoice: {ex.Message}";
+            statusMessage = null;
+            Logger.LogError(ex, "Error deleting invoice");
+        }
+    }
+
+    public class NewInvoiceModel
+    {
+        [Required]
+        [StringLength(500)]
+        public string Description { get; set; } = "";
+
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        [Required]
+        public DateTime Date { get; set; } = DateTime.Today;
+
+        [StringLength(1000)]
+        public string? Notes { get; set; }
+    }
+}
