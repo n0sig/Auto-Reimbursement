@@ -14,7 +14,7 @@
             <span class="bi @(isCollapsed ? "bi-chevron-down" : "bi-chevron-up")"></span>
         </button>
     </div>
-    <div class="card-body @(isCollapsed ? "d-none" : "")"
+    <div class="card-body @(isCollapsed ? "d-none" : "")">
         <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="@FormName">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" />
@@ -110,8 +110,7 @@
                                     <th>Name *</th>
                                     <th>Specification</th>
                                     <th>Unit</th>
-                                    <th>Amount</th>
-                                    <th>Unit Price</th>
+                                    <th>Quantity</th>
                                     <th>Price (No Tax) *</th>
                                     <th>Tax *</th>
                                     <th>Total</th>
@@ -134,19 +133,16 @@
                                             <InputText @bind-Value="item.Unit" class="form-control form-control-sm" />
                                         </td>
                                         <td>
-                                            <InputNumber @bind-Value="item.Amount" class="form-control form-control-sm" />
+                                            <InputNumber @bind-Value="item.Quantity" class="form-control form-control-sm" />
                                         </td>
                                         <td>
-                                            <InputNumber @bind-Value="item.UnitPrice" class="form-control form-control-sm" />
-                                        </td>
-                                        <td>
-                                            <InputNumber @bind-Value="item.TotalPriceWithoutTax" class="form-control form-control-sm" />
+                                            <InputNumber @bind-Value="item.Pretax" class="form-control form-control-sm" />
                                         </td>
                                         <td>
                                             <InputNumber @bind-Value="item.Tax" class="form-control form-control-sm" />
                                         </td>
                                         <td class="text-end">
-                                            @((item.TotalPriceWithoutTax + item.Tax).ToString("N2"))
+                                            @((item.Pretax + item.Tax).ToString("N2"))
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveInvoiceItem(index)">
@@ -215,7 +211,7 @@
         Model.Items.Add(new InvoiceItemModel
         {
             Name = "",
-            TotalPriceWithoutTax = 0,
+            Pretax = 0,
             Tax = 0
         });
     }
@@ -230,7 +226,7 @@
 
     private decimal CalculateTotalAmount()
     {
-        return Model.Items.Sum(i => i.TotalPriceWithoutTax + i.Tax);
+        return Model.Items.Sum(i => i.Pretax + i.Tax);
     }
 
     private async Task HandlePdfUpload(InputFileChangeEventArgs e)
@@ -249,7 +245,7 @@
             }
 
             // Store the PDF
-            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
             var pdfPath = await StorageService.StorePdfAsync(stream, file.Name);
             Model.PdfFilePath = pdfPath;
             Model.PdfFileName = file.Name;
@@ -259,14 +255,11 @@
             var extractedData = await LLMService.ExtractInvoiceDataAsync(stream);
 
             // Auto-fill fields
-            if (!string.IsNullOrEmpty(extractedData.SerialNumber))
-                Model.SerialNumber = extractedData.SerialNumber;
+            if (!string.IsNullOrEmpty(extractedData.Serial))
+                Model.SerialNumber = extractedData.Serial;
             
             if (extractedData.Date.HasValue)
                 Model.Date = extractedData.Date.Value;
-            
-            if (!string.IsNullOrEmpty(extractedData.Description))
-                Model.Description = extractedData.Description;
 
             // Clear existing items and add extracted items
             Model.Items.Clear();
@@ -277,9 +270,8 @@
                     Name = item.Name,
                     Specification = item.Specification,
                     Unit = item.Unit,
-                    Amount = item.Amount,
-                    UnitPrice = item.UnitPrice,
-                    TotalPriceWithoutTax = item.TotalPriceWithoutTax,
+                    Quantity = item.Quantity,
+                    Pretax = item.Pretax,
                     Tax = item.Tax
                 });
             }
@@ -348,12 +340,10 @@
         [StringLength(50)]
         public string? Unit { get; set; }
 
-        public decimal? Amount { get; set; }
-
-        public decimal? UnitPrice { get; set; }
+        public decimal? Quantity { get; set; }
 
         [Required]
-        public decimal TotalPriceWithoutTax { get; set; }
+        public decimal Pretax { get; set; }
 
         [Required]
         public decimal Tax { get; set; }

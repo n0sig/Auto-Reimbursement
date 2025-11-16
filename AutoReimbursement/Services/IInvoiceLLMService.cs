@@ -7,10 +7,9 @@ namespace AutoReimbursement.Services;
 /// </summary>
 public class ExtractedInvoiceData
 {
-    public string? SerialNumber { get; set; }
+    public string? Serial { get; set; }
     public DateTime? Date { get; set; }
-    public string? Description { get; set; }
-    public decimal TotalAmount { get; set; }
+    public decimal Amount { get; set; }
     public List<ExtractedInvoiceItem> Items { get; set; } = new();
 }
 
@@ -19,9 +18,8 @@ public class ExtractedInvoiceItem
     public string Name { get; set; } = string.Empty;
     public string? Specification { get; set; }
     public string? Unit { get; set; }
-    public decimal? Amount { get; set; }
-    public decimal? UnitPrice { get; set; }
-    public decimal TotalPriceWithoutTax { get; set; }
+    public decimal? Quantity { get; set; }
+    public decimal Pretax { get; set; }
     public decimal Tax { get; set; }
 }
 

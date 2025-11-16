@@ -28,10 +28,9 @@ public class InvoiceLLMService : IInvoiceLLMService
         
         return new ExtractedInvoiceData
         {
-            SerialNumber = "PLACEHOLDER-001",
+            Serial = "PLACEHOLDER-001",
             Date = DateTime.Today,
-            Description = "Extracted from PDF - Implement LLM integration",
-            TotalAmount = 0,
+            Amount = 0,
             Items = new List<ExtractedInvoiceItem>
             {
                 new ExtractedInvoiceItem
@@ -39,9 +38,8 @@ public class InvoiceLLMService : IInvoiceLLMService
                     Name = "Sample Item",
                     Specification = "N/A",
                     Unit = "pcs",
-                    Amount = 1,
-                    UnitPrice = 0,
-                    TotalPriceWithoutTax = 0,
+                    Quantity = 1,
+                    Pretax = 0,
                     Tax = 0
                 }
             }

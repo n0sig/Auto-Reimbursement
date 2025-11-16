@@ -21,12 +21,9 @@ public class InvoiceItem
     
     public decimal? Amount { get; set; }
     
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal? UnitPrice { get; set; }
-    
     [Required]
     [Column(TypeName = "decimal(18,2)")]
-    public decimal TotalPriceWithoutTax { get; set; }
+    public decimal Pretax { get; set; }
     
     [Required]
     [Column(TypeName = "decimal(18,2)")]

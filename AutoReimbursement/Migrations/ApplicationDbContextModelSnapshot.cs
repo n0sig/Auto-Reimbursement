@@ -111,7 +111,7 @@ namespace AutoReimbursement.Migrations
                     b.Property<int>("ReimbursementPlanId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("SerialNumber")
+                    b.Property<string>("Serial")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
@@ -142,6 +142,9 @@ namespace AutoReimbursement.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal>("Pretax")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Specification")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
@@ -149,15 +152,9 @@ namespace AutoReimbursement.Migrations
                     b.Property<decimal>("Tax")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("TotalPriceWithoutTax")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("Unit")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 

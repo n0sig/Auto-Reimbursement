@@ -10,7 +10,7 @@ public class Invoice
     public int ReimbursementPlanId { get; set; }
     
     [StringLength(100)]
-    public string? SerialNumber { get; set; }
+    public string? Serial { get; set; }
     
     [StringLength(500)]
     public string? Description { get; set; }

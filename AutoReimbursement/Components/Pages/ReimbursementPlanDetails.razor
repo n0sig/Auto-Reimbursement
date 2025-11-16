@@ -79,7 +79,7 @@ else
                             @foreach (var invoice in plan.Invoices.OrderByDescending(i => i.Date))
                             {
                                 <tr>
-                                    <td>@(invoice.SerialNumber ?? "-")</td>
+                                    <td>@(invoice.Serial ?? "-")</td>
                                     <td>@invoice.Type</td>
                                     <td>@(invoice.Description ?? "-")</td>
                                     <td>$@invoice.Amount.ToString("N2")</td>
@@ -137,7 +137,7 @@ else
                     <div class="modal-body">
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <p><strong>Serial Number:</strong> @(selectedInvoice.SerialNumber ?? "-")</p>
+                                <p><strong>Serial Number:</strong> @(selectedInvoice.Serial ?? "-")</p>
                                 <p><strong>Type:</strong> @selectedInvoice.Type</p>
                                 <p><strong>Description:</strong> @(selectedInvoice.Description ?? "-")</p>
                                 <p><strong>Date:</strong> @(selectedInvoice.Date?.ToString("yyyy-MM-dd") ?? "-")</p>
@@ -168,7 +168,6 @@ else
                                             <th>Specification</th>
                                             <th>Unit</th>
                                             <th>Amount</th>
-                                            <th>Unit Price</th>
                                             <th>Price (No Tax)</th>
                                             <th>Tax</th>
                                             <th>Total</th>
@@ -182,17 +181,16 @@ else
                                                 <td>@(item.Specification ?? "-")</td>
                                                 <td>@(item.Unit ?? "-")</td>
                                                 <td>@(item.Amount?.ToString("N2") ?? "-")</td>
-                                                <td>@(item.UnitPrice.HasValue ? $"${item.UnitPrice:N2}" : "-")</td>
-                                                <td>$@item.TotalPriceWithoutTax.ToString("N2")</td>
+                                                <td>$@item.Pretax.ToString("N2")</td>
                                                 <td>$@item.Tax.ToString("N2")</td>
-                                                <td>$@((item.TotalPriceWithoutTax + item.Tax).ToString("N2"))</td>
+                                                <td>$@((item.Pretax + item.Tax).ToString("N2"))</td>
                                             </tr>
                                         }
                                     </tbody>
                                     <tfoot>
                                         <tr>
                                             <th colspan="7" class="text-end">Total:</th>
-                                            <th>$@selectedInvoice.InvoiceItems.Sum(i => i.TotalPriceWithoutTax + i.Tax).ToString("N2")</th>
+                                            <th>$@selectedInvoice.InvoiceItems.Sum(i => i.Pretax + i.Tax).ToString("N2")</th>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -277,7 +275,7 @@ else
             var invoice = new Invoice
             {
                 ReimbursementPlanId = plan.Id,
-                SerialNumber = model.SerialNumber,
+                Serial = model.SerialNumber,
                 Description = model.Description,
                 Amount = model.Amount,
                 Date = model.Date,
@@ -294,9 +292,8 @@ else
                     Name = itemModel.Name,
                     Specification = itemModel.Specification,
                     Unit = itemModel.Unit,
-                    Amount = itemModel.Amount,
-                    UnitPrice = itemModel.UnitPrice,
-                    TotalPriceWithoutTax = itemModel.TotalPriceWithoutTax,
+                    Amount = itemModel.Quantity,
+                    Pretax = itemModel.Pretax,
                     Tax = itemModel.Tax
                 });
             }
