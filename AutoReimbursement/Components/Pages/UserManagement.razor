@@ -51,13 +51,6 @@ else
                     <ValidationMessage For="() => newUserModel.Password" />
                 </div>
                 
-                <div class="form-check mb-3">
-                    <InputCheckbox @bind-Value="newUserModel.IsAdministrator" class="form-check-input" id="isAdmin" />
-                    <label class="form-check-label" for="isAdmin">
-                        Administrator
-                    </label>
-                </div>
-                
                 <button type="submit" class="btn btn-primary">Create User</button>
             </EditForm>
         </div>
@@ -189,7 +182,7 @@ else
                 UserName = newUserModel.Username,
                 Email = newUserModel.Username, // Set email same as username for compatibility
                 EmailConfirmed = true,
-                IsAdministrator = newUserModel.IsAdministrator
+                IsAdministrator = false // New users cannot be administrators
             };
 
             var result = await UserManager.CreateAsync(user, newUserModel.Password);
@@ -319,8 +312,6 @@ else
         [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
         [DataType(DataType.Password)]
         public string Password { get; set; } = "";
-
-        public bool IsAdministrator { get; set; } = false;
     }
 
     public class ResetPasswordModel
