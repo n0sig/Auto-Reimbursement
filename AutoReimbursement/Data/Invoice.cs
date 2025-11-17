@@ -30,8 +30,7 @@ public class Invoice
     [StringLength(500)]
     public string? PdfFilePath { get; set; }
     
-    [Required]
-    public string PayerId { get; set; } = string.Empty;
+    public string? PayerId { get; set; }
     
     // Navigation properties
     public ReimbursementPlan ReimbursementPlan { get; set; } = null!;
