@@ -48,6 +48,25 @@
             </div>
 
             <div class="row">
+                <div class="col-md-12">
+                    <div class="form-floating mb-3">
+                        <InputSelect @bind-Value="Model.PayerId" class="form-control">
+                            <option value="">-- Select Payer --</option>
+                            @if (AvailablePayers != null)
+                            {
+                                @foreach (var payer in AvailablePayers)
+                                {
+                                    <option value="@payer.Id">@payer.UserName</option>
+                                }
+                            }
+                        </InputSelect>
+                        <label>Payer *</label>
+                        <ValidationMessage For="() => Model.PayerId" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-md-6">
                     <div class="form-floating mb-3">
                         <InputSelect @bind-Value="Model.Type" class="form-control">
@@ -197,6 +216,9 @@
     [Parameter]
     public string FormName { get; set; } = "invoiceForm";
 
+    [Parameter]
+    public List<ApplicationUser>? AvailablePayers { get; set; }
+
     private bool isProcessingPdf = false;
     private string? errorMessage;
     private bool isCollapsed = true;
@@ -324,6 +346,9 @@
 
         public string? PdfFilePath { get; set; }
         public string? PdfFileName { get; set; }
+
+        [Required(ErrorMessage = "Payer is required")]
+        public string PayerId { get; set; } = "";
 
         public List<InvoiceItemModel> Items { get; set; } = new();
     }

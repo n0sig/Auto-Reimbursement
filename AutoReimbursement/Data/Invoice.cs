@@ -30,7 +30,11 @@ public class Invoice
     [StringLength(500)]
     public string? PdfFilePath { get; set; }
     
+    [Required]
+    public string PayerId { get; set; } = string.Empty;
+    
     // Navigation properties
     public ReimbursementPlan ReimbursementPlan { get; set; } = null!;
+    public ApplicationUser? Payer { get; set; }
     public ICollection<InvoiceItem> InvoiceItems { get; set; } = new List<InvoiceItem>();
 }
