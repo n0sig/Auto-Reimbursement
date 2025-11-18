@@ -93,11 +93,6 @@
                 <label>Description</label>
             </div>
 
-            <div class="form-floating mb-3">
-                <InputTextArea @bind-Value="Model.Notes" class="form-control" placeholder="Notes" style="height: 80px" />
-                <label>Notes (optional)</label>
-            </div>
-
             <!-- PDF Upload Section -->
             <div class="mb-3">
                 <label class="form-label">Upload PDF Invoice (optional)</label>
@@ -341,9 +336,6 @@
 
         [Required(ErrorMessage = "Type is required")]
         public string Type { get; set; } = "";
-
-        [StringLength(1000)]
-        public string? Notes { get; set; }
 
         public string? PdfFilePath { get; set; }
         public string? PdfFileName { get; set; }

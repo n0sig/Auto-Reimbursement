@@ -148,7 +148,6 @@ else
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Total Amount:</strong> $@selectedInvoice.Amount.ToString("N2")</p>
-                                <p><strong>Notes:</strong> @(selectedInvoice.Notes ?? "-")</p>
                                 @if (!string.IsNullOrEmpty(selectedInvoice.PdfFilePath))
                                 {
                                     <p>
@@ -297,7 +296,6 @@ else
                 Amount = model.Amount,
                 Date = model.Date,
                 Type = Enum.Parse<InvoiceType>(model.Type),
-                Notes = model.Notes,
                 PdfFilePath = model.PdfFilePath,
                 PayerId = model.PayerId
             };
