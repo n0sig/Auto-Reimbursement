@@ -17,39 +17,36 @@
     <div class="card-body @(isCollapsed ? "d-none" : "")">
         <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="@FormName">
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" />
+            <ValidationSummary class="text-danger mb-2" />
             
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger">@errorMessage</div>
+                <div class="alert alert-danger py-2 px-3 mb-2">@errorMessage</div>
             }
 
             @if (isProcessingPdf)
             {
-                <div class="alert alert-info">
+                <div class="alert alert-info py-2 px-3 mb-2">
                     <span class="spinner-border spinner-border-sm me-2"></span>
                     Processing PDF...
                 </div>
             }
 
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
+            <div class="row g-2">
+                <div class="col-sm-6 col-lg-4">
+                    <div class="form-floating">
                         <InputText @bind-Value="Model.SerialNumber" class="form-control" placeholder="Serial Number" />
                         <label>Serial Number</label>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
+                <div class="col-sm-6 col-lg-4">
+                    <div class="form-floating">
                         <InputDate @bind-Value="Model.Date" class="form-control" />
                         <label>Date</label>
                     </div>
                 </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="form-floating mb-3">
+                <div class="col-sm-12 col-lg-4">
+                    <div class="form-floating">
                         <InputSelect @bind-Value="Model.PayerId" class="form-control">
                             <option value="">-- Select Payer --</option>
                             @if (AvailablePayers != null)
@@ -66,9 +63,9 @@
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
+            <div class="row g-2">
+                <div class="col-sm-6">
+                    <div class="form-floating">
                         <InputSelect @bind-Value="Model.Type" class="form-control">
                             <option value="">-- Select Type --</option>
                             <option value="Material">Material</option>
@@ -79,8 +76,8 @@
                         <ValidationMessage For="() => Model.Type" />
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
+                <div class="col-sm-6">
+                    <div class="form-floating">
                         <InputNumber @bind-Value="Model.Amount" class="form-control" placeholder="Amount" />
                         <label>Amount *</label>
                         <ValidationMessage For="() => Model.Amount" />
@@ -88,47 +85,47 @@
                 </div>
             </div>
 
-            <div class="form-floating mb-3">
+            <div class="form-floating">
                 <InputText @bind-Value="Model.Description" class="form-control" placeholder="Description" />
                 <label>Description</label>
             </div>
 
             <!-- PDF Upload Section -->
-            <div class="mb-3">
-                <label class="form-label">Upload PDF Invoice (optional)</label>
+            <div class="pdf-upload-section">
+                <label class="form-label fw-semibold">Upload PDF Invoice</label>
                 <InputFile OnChange="HandlePdfUpload" accept=".pdf" class="form-control" disabled="@isProcessingPdf" />
-                <small class="form-text text-muted">Upload a PDF to auto-extract invoice details</small>
+                <small class="form-text text-muted d-block">Upload a PDF to auto-extract invoice details</small>
                 @if (!string.IsNullOrEmpty(Model.PdfFileName))
                 {
-                    <div class="mt-2">
-                        <span class="badge bg-success">PDF uploaded: @Model.PdfFileName</span>
+                    <div class="mt-1">
+                        <span class="badge bg-success"><i class="bi bi-file-pdf"></i> @Model.PdfFileName</span>
                     </div>
                 }
             </div>
 
             <!-- Invoice Items Section -->
-            <div class="mb-3">
+            <div class="invoice-items-section">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="mb-0">Invoice Items</h5>
+                    <h5 class="mb-0 fw-semibold">Invoice Items</h5>
                     <button type="button" class="btn btn-sm btn-primary" @onclick="AddInvoiceItem">
-                        <span class="bi bi-plus-circle"></span> Add Item
+                        <i class="bi bi-plus-circle"></i> Add Item
                     </button>
                 </div>
 
                 @if (Model.Items.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
-                            <thead>
+                        <table class="table table-sm table-bordered table-hover">
+                            <thead class="table-light">
                                 <tr>
                                     <th>Name *</th>
-                                    <th>Specification</th>
+                                    <th>Spec</th>
                                     <th>Unit</th>
-                                    <th>Quantity</th>
+                                    <th>Qty</th>
                                     <th>Price (No Tax) *</th>
                                     <th>Tax *</th>
                                     <th>Total</th>
-                                    <th style="width: 50px;">Action</th>
+                                    <th style="width: 60px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -155,21 +152,21 @@
                                         <td>
                                             <InputNumber @bind-Value="item.Tax" class="form-control form-control-sm" />
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end fw-semibold">
                                             @((item.Pretax + item.Tax).ToString("N2"))
                                         </td>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveInvoiceItem(index)">
-                                                <span class="bi bi-trash"></span> Delete
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveInvoiceItem(index)" title="Delete">
+                                                <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
                                     </tr>
                                 }
                             </tbody>
-                            <tfoot>
+                            <tfoot class="table-light">
                                 <tr>
-                                    <th colspan="7" class="text-end">Total Amount:</th>
-                                    <th class="text-end">$@CalculateTotalAmount().ToString("N2")</th>
+                                    <th colspan="6" class="text-end">Total Amount:</th>
+                                    <th class="text-end fw-bold">$@CalculateTotalAmount().ToString("N2")</th>
                                     <th></th>
                                 </tr>
                             </tfoot>
@@ -178,17 +175,19 @@
                 }
                 else
                 {
-                    <div class="alert alert-info">No items added yet. Click "Add Item" to start.</div>
+                    <div class="alert alert-info py-2 px-3">No items added yet. Click "Add Item" to start.</div>
                 }
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-2 mt-3">
                 <button type="submit" class="btn btn-success" disabled="@isProcessingPdf">
-                    @(EditMode ? "Update Invoice" : "Add Invoice")
+                    <i class="bi bi-check-circle"></i> @(EditMode ? "Update Invoice" : "Add Invoice")
                 </button>
                 @if (OnCancel.HasDelegate)
                 {
-                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
                 }
             </div>
         </EditForm>
