@@ -35,8 +35,7 @@ namespace AutoReimbursement.Migrations
                     Specification = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
                     Unit = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
                     Amount = table.Column<decimal>(type: "TEXT", nullable: true),
-                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    TotalPriceWithoutTax = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Pretax = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Tax = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>

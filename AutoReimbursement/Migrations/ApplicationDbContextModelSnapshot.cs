@@ -123,7 +123,7 @@ namespace AutoReimbursement.Migrations
 
                     b.HasIndex("ReimbursementPlanId");
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("AutoReimbursement.Data.InvoiceItem", b =>
@@ -161,7 +161,7 @@ namespace AutoReimbursement.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("InvoiceItems");
+                    b.ToTable("InvoiceItems", (string)null);
                 });
 
             modelBuilder.Entity("AutoReimbursement.Data.ReimbursementPlan", b =>
@@ -180,7 +180,7 @@ namespace AutoReimbursement.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReimbursementPlans");
+                    b.ToTable("ReimbursementPlans", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
