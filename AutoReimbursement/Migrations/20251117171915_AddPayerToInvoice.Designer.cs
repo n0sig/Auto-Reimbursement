@@ -3,6 +3,7 @@ using System;
 using AutoReimbursement.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoReimbursement.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251117171915_AddPayerToInvoice")]
+    partial class AddPayerToInvoice
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.21");
@@ -105,6 +108,7 @@ namespace AutoReimbursement.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PayerId")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PdfFilePath")
@@ -319,7 +323,9 @@ namespace AutoReimbursement.Migrations
                 {
                     b.HasOne("AutoReimbursement.Data.ApplicationUser", "Payer")
                         .WithMany()
-                        .HasForeignKey("PayerId");
+                        .HasForeignKey("PayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("AutoReimbursement.Data.ReimbursementPlan", "ReimbursementPlan")
                         .WithMany("Invoices")

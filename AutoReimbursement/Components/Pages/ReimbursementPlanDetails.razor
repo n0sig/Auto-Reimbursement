@@ -51,6 +51,7 @@ else
     <div class="mb-4">
         <InvoiceForm Model="newInvoiceModel" 
                      OnSubmit="AddInvoice" 
+                     AvailablePayers="availablePayers"
                      FormName="addInvoice" />
     </div>
 
@@ -70,6 +71,7 @@ else
                                 <th>Description</th>
                                 <th>Amount</th>
                                 <th>Date</th>
+                                <th>Payer</th>
                                 <th>Items</th>
                                 <th>PDF</th>
                                 <th style="width: 150px;">Actions</th>
@@ -84,6 +86,7 @@ else
                                     <td>@(invoice.Description ?? "-")</td>
                                     <td>$@invoice.Amount.ToString("N2")</td>
                                     <td>@(invoice.Date?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                    <td>@(invoice.Payer?.UserName ?? "Deleted user")</td>
                                     <td>@invoice.InvoiceItems.Count items</td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(invoice.PdfFilePath))
@@ -112,7 +115,7 @@ else
                             <tr>
                                 <th colspan="3">Total</th>
                                 <th>$@plan.Invoices.Sum(i => i.Amount).ToString("N2")</th>
-                                <th colspan="4"></th>
+                                <th colspan="5"></th>
                             </tr>
                         </tfoot>
                     </table>
@@ -141,6 +144,7 @@ else
                                 <p><strong>Type:</strong> @selectedInvoice.Type</p>
                                 <p><strong>Description:</strong> @(selectedInvoice.Description ?? "-")</p>
                                 <p><strong>Date:</strong> @(selectedInvoice.Date?.ToString("yyyy-MM-dd") ?? "-")</p>
+                                <p><strong>Payer:</strong> @(selectedInvoice.Payer?.UserName ?? "Deleted user")</p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Total Amount:</strong> $@selectedInvoice.Amount.ToString("N2")</p>
@@ -223,6 +227,7 @@ else
     private string? errorMessage;
     private Invoice? selectedInvoice;
     private bool showInvoiceDetails = false;
+    private List<ApplicationUser>? availablePayers;
 
     [SupplyParameterFromForm]
     private InvoiceForm.InvoiceFormModel newInvoiceModel { get; set; } = new();
@@ -241,6 +246,7 @@ else
                 {
                     currentUserId = currentUser.Id;
                     await LoadPlan();
+                    await LoadAvailablePayers();
                 }
             }
         }
@@ -259,7 +265,18 @@ else
         plan = await DbContext.ReimbursementPlans
             .Include(p => p.Invoices)
                 .ThenInclude(i => i.InvoiceItems)
+            .Include(p => p.Invoices)
+                .ThenInclude(i => i.Payer)
             .FirstOrDefaultAsync(p => p.Id == PlanId);
+    }
+
+    private async Task LoadAvailablePayers()
+    {
+        // Load all non-admin users
+        availablePayers = await DbContext.Users
+            .Where(u => !u.IsAdministrator)
+            .OrderBy(u => u.UserName)
+            .ToListAsync();
     }
 
     private async Task AddInvoice(InvoiceForm.InvoiceFormModel model)
@@ -281,7 +298,8 @@ else
                 Date = model.Date,
                 Type = Enum.Parse<InvoiceType>(model.Type),
                 Notes = model.Notes,
-                PdfFilePath = model.PdfFilePath
+                PdfFilePath = model.PdfFilePath,
+                PayerId = model.PayerId
             };
 
             // Add invoice items
@@ -361,6 +379,7 @@ else
     {
         selectedInvoice = await DbContext.Invoices
             .Include(i => i.InvoiceItems)
+            .Include(i => i.Payer)
             .FirstOrDefaultAsync(i => i.Id == invoiceId);
         
         showInvoiceDetails = true;
