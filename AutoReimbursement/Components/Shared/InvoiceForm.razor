@@ -94,31 +94,32 @@
             </div>
 
             <!-- PDF Upload Section -->
-            <div class="mb-3">
-                <label class="form-label">Upload PDF Invoice (optional)</label>
+            <div class="pdf-upload-section">
+                <label class="form-label"><i class="bi bi-file-earmark-pdf"></i> Upload PDF Invoice (optional)</label>
                 <InputFile OnChange="HandlePdfUpload" accept=".pdf" class="form-control" disabled="@isProcessingPdf" />
                 <small class="form-text text-muted">Upload a PDF to auto-extract invoice details</small>
                 @if (!string.IsNullOrEmpty(Model.PdfFileName))
                 {
-                    <div class="mt-2">
-                        <span class="badge bg-success">PDF uploaded: @Model.PdfFileName</span>
+                    <div class="pdf-badge">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>PDF uploaded: @Model.PdfFileName</span>
                     </div>
                 }
             </div>
 
             <!-- Invoice Items Section -->
-            <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="mb-0">Invoice Items</h5>
+            <div class="invoice-items-section">
+                <div class="invoice-section-header">
+                    <h5><i class="bi bi-list-check"></i> Invoice Items</h5>
                     <button type="button" class="btn btn-sm btn-primary" @onclick="AddInvoiceItem">
-                        <span class="bi bi-plus-circle"></span> Add Item
+                        <i class="bi bi-plus-circle"></i> Add Item
                     </button>
                 </div>
 
                 @if (Model.Items.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
+                        <table class="table table-sm">
                             <thead>
                                 <tr>
                                     <th>Name *</th>
@@ -128,7 +129,7 @@
                                     <th>Price (No Tax) *</th>
                                     <th>Tax *</th>
                                     <th>Total</th>
-                                    <th style="width: 50px;">Action</th>
+                                    <th style="width: 100px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -160,7 +161,7 @@
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveInvoiceItem(index)">
-                                                <span class="bi bi-trash"></span> Delete
+                                                <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -168,7 +169,7 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="7" class="text-end">Total Amount:</th>
+                                    <th colspan="6" class="text-end">Total Amount:</th>
                                     <th class="text-end">$@CalculateTotalAmount().ToString("N2")</th>
                                     <th></th>
                                 </tr>
@@ -178,17 +179,21 @@
                 }
                 else
                 {
-                    <div class="alert alert-info">No items added yet. Click "Add Item" to start.</div>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> No items added yet. Click "Add Item" to start.
+                    </div>
                 }
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="action-buttons">
                 <button type="submit" class="btn btn-success" disabled="@isProcessingPdf">
-                    @(EditMode ? "Update Invoice" : "Add Invoice")
+                    <i class="bi bi-check-circle"></i> @(EditMode ? "Update Invoice" : "Add Invoice")
                 </button>
                 @if (OnCancel.HasDelegate)
                 {
-                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
                 }
             </div>
         </EditForm>

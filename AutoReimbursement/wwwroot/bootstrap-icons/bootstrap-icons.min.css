@@ -1,0 +1,54 @@
+/* Bootstrap Icons - Minimal Set */
+.bi {
+    display: inline-block;
+    vertical-align: -0.125em;
+    font-style: normal;
+}
+
+/* Using Unicode symbols as fallback for common icons */
+.bi-chevron-down::before {
+    content: "▼";
+}
+
+.bi-chevron-up::before {
+    content: "▲";
+}
+
+.bi-plus-circle::before {
+    content: "⊕";
+    font-size: 1.1em;
+}
+
+.bi-trash::before {
+    content: "🗑";
+}
+
+.bi-check-circle::before {
+    content: "✓";
+    font-weight: bold;
+}
+
+.bi-check-circle-fill::before {
+    content: "✓";
+    font-weight: bold;
+    color: #28a745;
+}
+
+.bi-x-circle::before {
+    content: "✕";
+    font-weight: bold;
+}
+
+.bi-info-circle::before {
+    content: "ℹ";
+    font-weight: bold;
+}
+
+.bi-file-earmark-pdf::before {
+    content: "📄";
+}
+
+.bi-list-check::before {
+    content: "☑";
+    font-size: 1.1em;
+}
