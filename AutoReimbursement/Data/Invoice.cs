@@ -24,9 +24,6 @@ public class Invoice
     [Required]
     public InvoiceType Type { get; set; }
     
-    [StringLength(1000)]
-    public string? Notes { get; set; }
-    
     [StringLength(500)]
     public string? PdfFilePath { get; set; }
     
