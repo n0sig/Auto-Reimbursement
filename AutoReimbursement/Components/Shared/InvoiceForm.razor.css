@@ -1,0 +1,250 @@
+/* Base styles for the Invoice Form card */
+.card {
+    margin-bottom: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 1rem;
+}
+
+.card-header h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Form elements spacing */
+.form-floating {
+    margin-bottom: 1rem;
+}
+
+/* Button group spacing */
+.d-flex.gap-2 {
+    gap: 0.5rem !important;
+}
+
+/* Invoice items table */
+.table-responsive {
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table {
+    min-width: 600px;
+}
+
+/* Responsive styles for tablets and smaller devices */
+@media (max-width: 992px) {
+    .card-header h3 {
+        font-size: 1.25rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Make table more compact */
+    .table {
+        font-size: 0.875rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem;
+    }
+}
+
+/* Responsive styles for mobile devices */
+@media (max-width: 768px) {
+    .card-header {
+        padding: 0.75rem;
+    }
+
+    .card-header h3 {
+        font-size: 1.125rem;
+    }
+
+    .card-body {
+        padding: 0.75rem;
+    }
+
+    /* Stack form fields vertically on mobile */
+    .row > [class*="col-"] {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Adjust button sizes for mobile */
+    .btn {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Stack buttons vertically on very small screens */
+    .d-flex.gap-2 {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .d-flex.gap-2 .btn {
+        width: 100%;
+    }
+
+    /* Compact table for mobile */
+    .table {
+        font-size: 0.75rem;
+        min-width: 500px;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.375rem;
+        white-space: nowrap;
+    }
+
+    /* Make "Add Item" button full width on mobile */
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 0.5rem;
+    }
+
+    .d-flex.justify-content-between.align-items-center .btn {
+        width: 100%;
+    }
+
+    /* Improve form control sizing on mobile */
+    .form-control,
+    .form-select {
+        font-size: 0.875rem;
+    }
+
+    .form-control-sm {
+        font-size: 0.75rem;
+    }
+
+    /* Alert messages should be more compact */
+    .alert {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* File upload label */
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .form-text {
+        font-size: 0.75rem;
+    }
+
+    /* Badge sizing */
+    .badge {
+        font-size: 0.75rem;
+    }
+}
+
+/* Responsive styles for very small mobile devices */
+@media (max-width: 576px) {
+    .card-header h3 {
+        font-size: 1rem;
+    }
+
+    /* Further reduce padding on very small screens */
+    .card-body {
+        padding: 0.5rem;
+    }
+
+    /* Ensure form floating labels work properly on small screens */
+    .form-floating > label {
+        font-size: 0.875rem;
+    }
+
+    /* Reduce heading size in items section */
+    h5 {
+        font-size: 1rem;
+    }
+
+    /* Make table even more compact */
+    .table {
+        font-size: 0.7rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.25rem;
+    }
+
+    /* Ensure horizontal scrolling is smooth for table */
+    .table-responsive {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+    }
+}
+
+/* Ensure proper touch targets on mobile */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .btn-sm {
+        min-height: 36px;
+        min-width: 36px;
+    }
+
+    /* Make clickable areas larger on touch devices */
+    .form-check-input {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+}
+
+/* Improve layout for landscape tablets */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    .table {
+        font-size: 0.875rem;
+    }
+}
+
+/* Print styles - ensure card prints properly */
+@media print {
+    .card {
+        box-shadow: none;
+        border: 1px solid #dee2e6;
+    }
+
+    .card-header button {
+        display: none;
+    }
+
+    .btn {
+        display: none;
+    }
+
+    .card-body {
+        display: block !important;
+    }
+
+    .table {
+        font-size: 0.875rem;
+    }
+}
