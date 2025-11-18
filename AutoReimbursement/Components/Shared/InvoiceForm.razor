@@ -273,8 +273,7 @@
             Model.PdfFileName = file.Name;
 
             // Extract data using LLM
-            stream.Position = 0;
-            var extractedData = await LLMService.ExtractInvoiceDataAsync(stream);
+            var extractedData = await LLMService.ExtractInvoiceDataAsync(pdfPath);
 
             // Auto-fill fields
             if (!string.IsNullOrEmpty(extractedData.Serial))
@@ -282,6 +281,8 @@
             
             if (extractedData.Date.HasValue)
                 Model.Date = extractedData.Date.Value;
+            
+            Model.Amount = extractedData.Amount;
 
             // Clear existing items and add extracted items
             Model.Items.Clear();

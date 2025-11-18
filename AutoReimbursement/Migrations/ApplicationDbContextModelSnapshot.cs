@@ -105,6 +105,7 @@ namespace AutoReimbursement.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PayerId")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PdfFilePath")
@@ -127,7 +128,7 @@ namespace AutoReimbursement.Migrations
 
                     b.HasIndex("ReimbursementPlanId");
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("AutoReimbursement.Data.InvoiceItem", b =>
@@ -165,7 +166,7 @@ namespace AutoReimbursement.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("InvoiceItems");
+                    b.ToTable("InvoiceItems", (string)null);
                 });
 
             modelBuilder.Entity("AutoReimbursement.Data.ReimbursementPlan", b =>
@@ -184,7 +185,7 @@ namespace AutoReimbursement.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReimbursementPlans");
+                    b.ToTable("ReimbursementPlans", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -319,7 +320,9 @@ namespace AutoReimbursement.Migrations
                 {
                     b.HasOne("AutoReimbursement.Data.ApplicationUser", "Payer")
                         .WithMany()
-                        .HasForeignKey("PayerId");
+                        .HasForeignKey("PayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("AutoReimbursement.Data.ReimbursementPlan", "ReimbursementPlan")
                         .WithMany("Invoices")

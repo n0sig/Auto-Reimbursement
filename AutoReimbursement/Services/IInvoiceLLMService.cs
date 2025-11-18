@@ -28,5 +28,5 @@ public interface IInvoiceLLMService
     /// <summary>
     /// Extracts invoice data from a PDF file using LLM
     /// </summary>
-    Task<ExtractedInvoiceData> ExtractInvoiceDataAsync(Stream pdfStream);
+    Task<ExtractedInvoiceData> ExtractInvoiceDataAsync(string pdfPath);
 }
