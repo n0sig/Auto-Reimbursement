@@ -272,7 +272,7 @@
             Model.PdfFileName = file.Name;
 
             // Extract data using LLM
-            var extractedData = await LLMService.ExtractInvoiceDataAsync(pdfPath);
+            var extractedData = await LLMService.ExtractInvoiceDataAsync(pdfPath) ?? new ExtractedInvoiceData();
 
             // Auto-fill fields
             if (!string.IsNullOrEmpty(extractedData.Serial))
@@ -297,6 +297,8 @@
                     Tax = item.Tax
                 });
             }
+            
+            Model.Type = extractedData.Type;
 
             Logger.LogInformation("PDF processed and data extracted successfully");
         }
