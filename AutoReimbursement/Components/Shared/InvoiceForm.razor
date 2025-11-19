@@ -33,64 +33,68 @@
             }
 
             <div class="row">
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
-                        <InputText @bind-Value="Model.SerialNumber" class="form-control" placeholder="Serial Number" />
-                        <label>Serial Number</label>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
-                        <InputDate @bind-Value="Model.Date" class="form-control" />
-                        <label>Date</label>
-                    </div>
-                </div>
-            </div>
+                <div class="col-md-12 col-xxl-6">
+                    <div class="row">
+                        
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputSelect @bind-Value="Model.Type" class="form-control">
+                                    <option value="">-- Select Type --</option>
+                                    <option value="Material">Material</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Others">Others</option>
+                                </InputSelect>
+                                <label>Type *</label>
+                                <ValidationMessage For="() => Model.Type"/>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputSelect @bind-Value="Model.PayerId" class="form-control">
+                                    <option value="">-- Select Payer --</option>
+                                    @if (AvailablePayers != null)
+                                    {
+                                        @foreach (var payer in AvailablePayers)
+                                        {
+                                            <option value="@payer.Id">@payer.UserName</option>
+                                        }
+                                    }
+                                </InputSelect>
+                                <label>Payer *</label>
+                                <ValidationMessage For="() => Model.PayerId"/>
+                            </div>
+                        </div>
 
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="form-floating mb-3">
-                        <InputSelect @bind-Value="Model.PayerId" class="form-control">
-                            <option value="">-- Select Payer --</option>
-                            @if (AvailablePayers != null)
-                            {
-                                @foreach (var payer in AvailablePayers)
-                                {
-                                    <option value="@payer.Id">@payer.UserName</option>
-                                }
-                            }
-                        </InputSelect>
-                        <label>Payer *</label>
-                        <ValidationMessage For="() => Model.PayerId" />
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <InputText @bind-Value="Model.SerialNumber" class="form-control" placeholder="Serial Number"/>
+                                <label>Serial Number</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <InputNumber @bind-Value="Model.Amount" class="form-control" placeholder="Amount"/>
+                                <label>Amount *</label>
+                                <ValidationMessage For="() => Model.Amount"/>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <InputDate @bind-Value="Model.Date" class="form-control"/>
+                                <label>Date</label>
+                            </div>
+                        </div>
+                        
                     </div>
                 </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
-                        <InputSelect @bind-Value="Model.Type" class="form-control">
-                            <option value="">-- Select Type --</option>
-                            <option value="Material">Material</option>
-                            <option value="Travel">Travel</option>
-                            <option value="Others">Others</option>
-                        </InputSelect>
-                        <label>Type *</label>
-                        <ValidationMessage For="() => Model.Type" />
+                
+                <div class="col-md-12 col-xxl-6 d-flex flex-column">
+                    <!-- h-100 ensures D fills the height of the parent wrapper in XXL mode -->
+                    <div class="form-floating mb-3 h-100">
+                        <InputTextArea @bind-Value="Model.Description" class="form-control h-100" placeholder="Description" style="min-height: 64px"/>
+                        <label>Description</label>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-floating mb-3">
-                        <InputNumber @bind-Value="Model.Amount" class="form-control" placeholder="Amount" />
-                        <label>Amount *</label>
-                        <ValidationMessage For="() => Model.Amount" />
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Model.Description" class="form-control" placeholder="Description" />
-                <label>Description</label>
             </div>
 
             <!-- PDF Upload Section -->
