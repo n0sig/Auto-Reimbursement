@@ -24,46 +24,17 @@ public class BulkInvoiceService : IBulkInvoiceService
     }
 
     public async Task ProcessBulkUploadAsync(
-        List<IBrowserFile> files,
+        List<FileData> files,
         string payerId,
         int reimbursementPlanId,
         Action<BulkUploadProgress> progressCallback)
     {
-        // First, read all files into memory to avoid Blazor file reference issues
-        var fileDataList = new List<(string FileName, byte[] Data)>();
-        
-        foreach (var file in files)
+        // Process each file from the provided data
+        foreach (var fileData in files)
         {
             var progress = new BulkUploadProgress
             {
-                FileName = file.Name,
-                Status = BulkUploadStatus.Uploading,
-                Message = "Reading file..."
-            };
-            progressCallback(progress);
-
-            try
-            {
-                await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
-                fileDataList.Add((file.Name, memoryStream.ToArray()));
-            }
-            catch (Exception ex)
-            {
-                progress.Status = BulkUploadStatus.Failed;
-                progress.Message = $"Failed to read file: {ex.Message}";
-                progressCallback(progress);
-                _logger.LogError(ex, "Error reading file {FileName}", file.Name);
-            }
-        }
-
-        // Now process each file from memory
-        foreach (var (fileName, fileData) in fileDataList)
-        {
-            var progress = new BulkUploadProgress
-            {
-                FileName = fileName,
+                FileName = fileData.FileName,
                 Status = BulkUploadStatus.Uploading,
                 Message = "Uploading PDF..."
             };
@@ -72,8 +43,8 @@ public class BulkInvoiceService : IBulkInvoiceService
             try
             {
                 // Step 1: Upload PDF
-                await using var stream = new MemoryStream(fileData);
-                var pdfPath = await _storageService.StorePdfAsync(stream, fileName);
+                await using var stream = new MemoryStream(fileData.Data);
+                var pdfPath = await _storageService.StorePdfAsync(stream, fileData.FileName);
 
                 // Step 2: Extract data using LLM
                 progress.Status = BulkUploadStatus.Extracting;
@@ -148,7 +119,7 @@ public class BulkInvoiceService : IBulkInvoiceService
                 progressCallback(progress);
 
                 _logger.LogInformation("Invoice from {FileName} added successfully to plan {PlanId}", 
-                    fileName, reimbursementPlanId);
+                    fileData.FileName, reimbursementPlanId);
             }
             catch (Exception ex)
             {
@@ -156,7 +127,7 @@ public class BulkInvoiceService : IBulkInvoiceService
                 progress.Message = $"Error: {ex.Message}";
                 progressCallback(progress);
                 
-                _logger.LogError(ex, "Error processing bulk upload for file {FileName}", fileName);
+                _logger.LogError(ex, "Error processing bulk upload for file {FileName}", fileData.FileName);
             }
         }
     }

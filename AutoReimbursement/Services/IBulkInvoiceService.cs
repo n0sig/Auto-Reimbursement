@@ -18,13 +18,19 @@ public class BulkUploadProgress
     public string Message { get; set; } = string.Empty;
 }
 
+public class FileData
+{
+    public string FileName { get; set; } = string.Empty;
+    public byte[] Data { get; set; } = Array.Empty<byte>();
+}
+
 public interface IBulkInvoiceService
 {
     /// <summary>
     /// Process multiple PDFs with automatic invoice recognition and addition
     /// </summary>
     Task ProcessBulkUploadAsync(
-        List<IBrowserFile> files,
+        List<FileData> files,
         string payerId,
         int reimbursementPlanId,
         Action<BulkUploadProgress> progressCallback);
