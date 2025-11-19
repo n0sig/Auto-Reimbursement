@@ -39,6 +39,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 // Register invoice services
 builder.Services.AddScoped<IInvoiceStorageService, InvoiceStorageService>();
 builder.Services.AddScoped<IInvoiceLLMService, InvoiceLLMService>();
+builder.Services.AddScoped<IBulkInvoiceService, BulkInvoiceService>();
 
 // Add authorization policies
 builder.Services.AddAuthorizationCore(options =>
