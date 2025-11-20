@@ -9,66 +9,51 @@
         <h3 class="mb-0">One-Click Add - Bulk Upload Invoices</h3>
     </div>
     <div class="card-body">
-        @if (!isUploading)
-        {
-            <div class="mb-3">
-                <label class="form-label">Select Payer (required for all invoices) *</label>
-                <select @bind="selectedPayerId" class="form-control">
-                    <option value="">-- Select Payer --</option>
-                    @if (AvailablePayers != null)
+        <div class="mb-3">
+            <label class="form-label">Select Payer (required for all invoices) *</label>
+            <select @bind="selectedPayerId" class="form-control" disabled="@isUploading">
+                <option value="">-- Select Payer --</option>
+                @if (AvailablePayers != null)
+                {
+                    @foreach (var payer in AvailablePayers)
                     {
-                        @foreach (var payer in AvailablePayers)
-                        {
-                            <option value="@payer.Id">@payer.UserName</option>
-                        }
+                        <option value="@payer.Id">@payer.UserName</option>
                     }
-                </select>
-                @if (!string.IsNullOrEmpty(validationMessage))
-                {
-                    <div class="text-danger mt-2">@validationMessage</div>
                 }
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Select PDF Invoices (multiple files)</label>
-                <InputFile OnChange="HandleFileSelection" accept=".pdf" multiple class="form-control" />
-                <small class="form-text text-muted">Select multiple PDF files to upload and process automatically</small>
-            </div>
-
-            @if (selectedFilesData.Any())
+            </select>
+            @if (!string.IsNullOrEmpty(validationMessage))
             {
-                <div class="alert alert-info">
-                    <strong>Selected Files (@selectedFilesData.Count):</strong>
-                    <ul class="mb-0">
-                        @foreach (var file in selectedFilesData)
-                        {
-                            <li>@file.FileName (@(file.Data.Length / 1024.0).ToString("N2") KB)</li>
-                        }
-                    </ul>
-                </div>
+                <div class="text-danger mt-2">@validationMessage</div>
             }
+        </div>
 
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary" @onclick="StartBulkUpload" disabled="@(!selectedFilesData.Any() || string.IsNullOrEmpty(selectedPayerId))">
-                    <span class="bi bi-upload"></span> Start Upload
-                </button>
-                @if (selectedFilesData.Any())
+        <div class="mb-3">
+            <label class="form-label">Select PDF Invoices (multiple files)</label>
+            <InputFile OnChange="HandleFileSelection" accept=".pdf" multiple class="form-control" disabled="@string.IsNullOrEmpty(selectedPayerId)" />
+            <small class="form-text text-muted">
+                @if (string.IsNullOrEmpty(selectedPayerId))
                 {
-                    <button class="btn btn-secondary" @onclick="ClearSelection">
-                        <span class="bi bi-x-circle"></span> Clear
-                    </button>
+                    <span class="text-warning">Please select a payer first to enable file selection</span>
                 }
-            </div>
-        }
-        else
+                else
+                {
+                    <span>Select multiple PDF files - upload starts automatically</span>
+                }
+            </small>
+        </div>
+
+        @if (isUploading)
         {
             <div class="alert alert-info">
                 <span class="spinner-border spinner-border-sm me-2"></span>
-                Processing invoices... Please wait.
+                Processing invoices... You can continue to add more files.
             </div>
+        }
 
-            @if (uploadProgress.Any())
-            {
+        @if (allUploadProgress.Any())
+        {
+            <div class="mt-3">
+                <h5>Upload Progress</h5>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
@@ -79,7 +64,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var progress in uploadProgress)
+                            @foreach (var progress in allUploadProgress.OrderByDescending(p => p.StartTime))
                             {
                                 <tr class="@GetRowClass(progress.Status)">
                                     <td>@progress.FileName</td>
@@ -100,20 +85,15 @@
                         </tbody>
                     </table>
                 </div>
-            }
-        }
 
-        @if (uploadComplete && uploadProgress.Any())
-        {
-            <div class="mt-3">
-                <div class="alert @(successCount > 0 ? "alert-success" : "alert-warning")">
-                    <strong>Upload Complete!</strong><br/>
-                    Successfully added: @successCount / @uploadProgress.Count<br/>
-                    Failed: @failedCount
-                </div>
-                <button class="btn btn-secondary" @onclick="Reset">
-                    <span class="bi bi-arrow-clockwise"></span> Upload More
-                </button>
+                @if (GetCompletedBatchesCount() > 0)
+                {
+                    <div class="alert alert-secondary mt-2">
+                        <strong>Summary:</strong> 
+                        @GetTotalSuccessCount() succeeded, @GetTotalFailedCount() failed 
+                        (from @GetCompletedBatchesCount() batch@(GetCompletedBatchesCount() > 1 ? "es" : ""))
+                    </div>
+                }
             </div>
         }
     </div>
@@ -129,22 +109,39 @@
     [Parameter]
     public EventCallback OnInvoicesAdded { get; set; }
 
-    private List<FileData> selectedFilesData = new();
     private string selectedPayerId = "";
     private string validationMessage = "";
     private bool isUploading = false;
-    private bool uploadComplete = false;
-    private List<BulkUploadProgress> uploadProgress = new();
-    private int successCount = 0;
-    private int failedCount = 0;
+    private List<BulkUploadProgressExtended> allUploadProgress = new();
+    private int batchCounter = 0;
+
+    private class BulkUploadProgressExtended
+    {
+        public string FileName { get; set; } = string.Empty;
+        public BulkUploadStatus Status { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public DateTime StartTime { get; set; }
+        public int BatchId { get; set; }
+    }
 
     private async Task HandleFileSelection(InputFileChangeEventArgs e)
     {
         validationMessage = "";
-        selectedFilesData.Clear();
         
+        if (string.IsNullOrEmpty(selectedPayerId))
+        {
+            validationMessage = "Please select a payer first.";
+            return;
+        }
+
         var files = e.GetMultipleFiles(50);
-        
+        if (!files.Any())
+        {
+            return;
+        }
+
+        // Read files into memory
+        var filesData = new List<FileData>();
         foreach (var file in files)
         {
             try
@@ -153,7 +150,7 @@
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
                 
-                selectedFilesData.Add(new FileData
+                filesData.Add(new FileData
                 {
                     FileName = file.Name,
                     Data = memoryStream.ToArray()
@@ -163,52 +160,48 @@
             {
                 Logger.LogError(ex, "Error reading file {FileName}", file.Name);
                 validationMessage = $"Failed to read file {file.Name}: {ex.Message}";
-                selectedFilesData.Clear();
                 return;
             }
         }
+
+        // Start upload automatically
+        if (filesData.Any())
+        {
+            _ = StartBulkUploadAsync(filesData);
+        }
     }
 
-    private void ClearSelection()
+    private async Task StartBulkUploadAsync(List<FileData> filesData)
     {
-        selectedFilesData.Clear();
-        validationMessage = "";
-    }
-
-    private async Task StartBulkUpload()
-    {
-        if (string.IsNullOrEmpty(selectedPayerId))
-        {
-            validationMessage = "Please select a payer before uploading.";
-            return;
-        }
-
-        if (!selectedFilesData.Any())
-        {
-            validationMessage = "Please select at least one PDF file.";
-            return;
-        }
-
         isUploading = true;
-        uploadComplete = false;
-        uploadProgress.Clear();
-        successCount = 0;
-        failedCount = 0;
+        var currentBatchId = ++batchCounter;
+        var currentBatchProgress = new List<BulkUploadProgressExtended>();
+
+        // Initialize progress for all files in this batch
+        foreach (var file in filesData)
+        {
+            var progressItem = new BulkUploadProgressExtended
+            {
+                FileName = file.FileName,
+                Status = BulkUploadStatus.Pending,
+                Message = "Waiting to process...",
+                StartTime = DateTime.Now,
+                BatchId = currentBatchId
+            };
+            currentBatchProgress.Add(progressItem);
+            allUploadProgress.Add(progressItem);
+        }
+
+        await InvokeAsync(StateHasChanged);
 
         try
         {
             await BulkInvoiceService.ProcessBulkUploadAsync(
-                selectedFilesData,
+                filesData,
                 selectedPayerId,
                 ReimbursementPlanId,
-                UpdateProgress
+                progress => UpdateProgress(progress, currentBatchProgress)
             );
-
-            // Count successes and failures
-            successCount = uploadProgress.Count(p => p.Status == BulkUploadStatus.Added);
-            failedCount = uploadProgress.Count(p => p.Status == BulkUploadStatus.Failed);
-
-            uploadComplete = true;
 
             // Notify parent component to reload
             if (OnInvoicesAdded.HasDelegate)
@@ -219,41 +212,50 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error during bulk upload");
-            validationMessage = $"An error occurred: {ex.Message}";
+            // Mark all pending items as failed
+            foreach (var item in currentBatchProgress.Where(p => p.Status == BulkUploadStatus.Pending || p.Status == BulkUploadStatus.Uploading || p.Status == BulkUploadStatus.Extracting))
+            {
+                item.Status = BulkUploadStatus.Failed;
+                item.Message = $"Error: {ex.Message}";
+            }
         }
         finally
         {
             isUploading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private void UpdateProgress(BulkUploadProgress progress)
+    private void UpdateProgress(BulkUploadProgress progress, List<BulkUploadProgressExtended> batchProgress)
     {
-        var existing = uploadProgress.FirstOrDefault(p => p.FileName == progress.FileName);
+        var existing = batchProgress.FirstOrDefault(p => p.FileName == progress.FileName);
         if (existing != null)
         {
             existing.Status = progress.Status;
             existing.Message = progress.Message;
-        }
-        else
-        {
-            uploadProgress.Add(progress);
         }
         
         // Force UI update
         InvokeAsync(StateHasChanged);
     }
 
-    private void Reset()
+    private int GetCompletedBatchesCount()
     {
-        selectedFilesData.Clear();
-        uploadProgress.Clear();
-        selectedPayerId = "";
-        validationMessage = "";
-        isUploading = false;
-        uploadComplete = false;
-        successCount = 0;
-        failedCount = 0;
+        return allUploadProgress
+            .Where(p => p.Status == BulkUploadStatus.Added || p.Status == BulkUploadStatus.Failed)
+            .Select(p => p.BatchId)
+            .Distinct()
+            .Count();
+    }
+
+    private int GetTotalSuccessCount()
+    {
+        return allUploadProgress.Count(p => p.Status == BulkUploadStatus.Added);
+    }
+
+    private int GetTotalFailedCount()
+    {
+        return allUploadProgress.Count(p => p.Status == BulkUploadStatus.Failed);
     }
 
     private string GetStatusBadge(BulkUploadStatus status)
