@@ -11,7 +11,7 @@
     <div class="card-body">
         <div class="mb-3">
             <label class="form-label">Select Payer (required for all invoices) *</label>
-            <select @bind="selectedPayerId" class="form-control" disabled="@isUploading">
+            <select @bind="selectedPayerId" class="form-control">
                 <option value="">-- Select Payer --</option>
                 @if (AvailablePayers != null)
                 {
@@ -24,6 +24,12 @@
             @if (!string.IsNullOrEmpty(validationMessage))
             {
                 <div class="text-danger mt-2">@validationMessage</div>
+            }
+            @if (isUploading)
+            {
+                <small class="form-text text-muted">
+                    <span class="text-info">Note: New files will use the currently selected payer. Files already uploading will continue with their original payer.</span>
+                </small>
             }
         </div>
 
