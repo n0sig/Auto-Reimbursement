@@ -49,6 +49,12 @@ else
     </div>
 
     <div class="mb-4">
+        <BulkInvoiceUpload ReimbursementPlanId="@plan.Id" 
+                           AvailablePayers="availablePayers"
+                           OnInvoicesAdded="OnBulkInvoicesAdded" />
+    </div>
+
+    <div class="mb-4">
         <InvoiceForm Model="newInvoiceModel" 
                      OnSubmit="AddInvoice" 
                      AvailablePayers="availablePayers"
@@ -387,5 +393,12 @@ else
     {
         showInvoiceDetails = false;
         selectedInvoice = null;
+    }
+
+    private async Task OnBulkInvoicesAdded()
+    {
+        statusMessage = null;
+        errorMessage = null;
+        await LoadPlan();
     }
 }
