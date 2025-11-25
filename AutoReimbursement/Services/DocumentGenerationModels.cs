@@ -27,7 +27,7 @@ public class GeneratedDocument
 }
 
 /// <summary>
-/// Request parameters for document generation
+/// Request parameters for document generation (single invoice)
 /// </summary>
 public class DocumentGenerationRequest
 {
@@ -38,6 +38,22 @@ public class DocumentGenerationRequest
     
     /// <summary>
     /// The types of documents to generate
+    /// </summary>
+    public List<DocumentType> DocumentTypes { get; set; } = new();
+}
+
+/// <summary>
+/// Request parameters for batch document generation (multiple invoices)
+/// </summary>
+public class BatchDocumentGenerationRequest
+{
+    /// <summary>
+    /// The invoice IDs to generate documents for
+    /// </summary>
+    public List<int> InvoiceIds { get; set; } = new();
+    
+    /// <summary>
+    /// The types of documents to generate. Each document type will contain data from all specified invoices.
     /// </summary>
     public List<DocumentType> DocumentTypes { get; set; } = new();
 }
