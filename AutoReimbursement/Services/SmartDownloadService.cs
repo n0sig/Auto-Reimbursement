@@ -87,19 +87,12 @@ public class SmartDownloadService : ISmartDownloadService
                 contentType = f.ContentType
             }).ToArray();
 
-            if (files.Count >= compressionThreshold)
-            {
-                _logger.LogInformation("Downloading {Count} files as ZIP archive: {ArchiveName}", files.Count, archiveName);
-                await _jsRuntime.InvokeVoidAsync("smartDownloadFromBase64", jsFiles, archiveName, compressionThreshold);
-            }
-            else
-            {
-                _logger.LogInformation("Downloading {Count} files independently", files.Count);
-                foreach (var file in jsFiles)
-                {
-                    await _jsRuntime.InvokeVoidAsync("downloadFromBase64", file.content, file.fileName, file.contentType);
-                }
-            }
+            // Use smartDownloadFromBase64 which handles both scenarios:
+            // - 3+ files: compress into ZIP archive
+            // - Less than 3 files: download independently with proper delays
+            _logger.LogInformation("Downloading {Count} files (threshold: {Threshold}, archive: {ArchiveName})", 
+                files.Count, compressionThreshold, archiveName);
+            await _jsRuntime.InvokeVoidAsync("smartDownloadFromBase64", jsFiles, archiveName, compressionThreshold);
         }
         catch (Exception ex)
         {

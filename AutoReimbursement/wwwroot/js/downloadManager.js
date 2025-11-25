@@ -19,8 +19,8 @@ async function ensureJSZipLoaded() {
 
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-        script.integrity = 'sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==';
+        // Using JSZip 3.7.1 - a stable and widely used version
+        script.src = 'https://unpkg.com/jszip@3.7.1/dist/jszip.min.js';
         script.crossOrigin = 'anonymous';
         script.onload = () => {
             jsZipLoaded = true;
