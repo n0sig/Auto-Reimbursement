@@ -41,6 +41,10 @@ builder.Services.AddScoped<IInvoiceStorageService, InvoiceStorageService>();
 builder.Services.AddScoped<IInvoiceLLMService, InvoiceLLMService>();
 builder.Services.AddScoped<IBulkInvoiceService, BulkInvoiceService>();
 
+// Register document generation services
+builder.Services.AddScoped<IDocumentGenerationService, DocumentGenerationService>();
+builder.Services.AddScoped<ISmartDownloadService, SmartDownloadService>();
+
 // Add authorization policies
 builder.Services.AddAuthorizationCore(options =>
 {
