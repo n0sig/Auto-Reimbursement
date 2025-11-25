@@ -449,7 +449,7 @@ else
                 return;
             }
 
-            var documents = await DocumentGenerationService.GenerateDocumentsAsync(invoiceId, documentTypes);
+            var documents = await DocumentGenerationService.GenerateDocumentsAsync(new[] { invoiceId }, documentTypes);
             if (documents.Count == 0)
             {
                 errorMessage = "No documents were generated.";

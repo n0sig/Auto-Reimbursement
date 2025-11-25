@@ -20,124 +20,29 @@ public class DocumentGenerationService : IDocumentGenerationService
     }
 
     /// <inheritdoc />
-    public async Task<GeneratedDocument> GenerateDocumentAsync(int invoiceId, DocumentType documentType)
+    public async Task<List<GeneratedDocument>> GenerateDocumentsAsync(IEnumerable<int> invoiceIds, IEnumerable<DocumentType> documentTypes)
     {
-        var invoice = await _dbContext.Invoices
-            .Include(i => i.InvoiceItems)
-            .Include(i => i.Payer)
-            .FirstOrDefaultAsync(i => i.Id == invoiceId);
-
-        if (invoice == null)
-        {
-            throw new ArgumentException($"Invoice with ID {invoiceId} not found.", nameof(invoiceId));
-        }
-
-        if (invoice.Type != InvoiceType.Material)
-        {
-            throw new ArgumentException($"Document generation is only supported for Material type invoices. Invoice {invoiceId} is of type {invoice.Type}.", nameof(invoiceId));
-        }
-
-        _logger.LogInformation("Generating {DocumentType} document for invoice {InvoiceId}", documentType, invoiceId);
-
-        // TODO: Implement actual document generation logic
-        // For now, return a placeholder document indicating the feature is not yet implemented
-        var content = System.Text.Encoding.UTF8.GetBytes($"Document generation for {documentType} is not yet implemented.\nInvoice ID: {invoiceId}\nInvoice Serial: {invoice.Serial ?? "N/A"}");
-
-        return new GeneratedDocument
-        {
-            FileName = GenerateFileName(invoice, documentType),
-            Content = content,
-            ContentType = GetContentType(documentType),
-            DocumentType = documentType
-        };
-    }
-
-    /// <inheritdoc />
-    public async Task<List<GeneratedDocument>> GenerateDocumentsAsync(int invoiceId, IEnumerable<DocumentType> documentTypes)
-    {
-        var documents = new List<GeneratedDocument>();
-        
-        foreach (var documentType in documentTypes)
-        {
-            var document = await GenerateDocumentAsync(invoiceId, documentType);
-            documents.Add(document);
-        }
-
-        return documents;
-    }
-
-    /// <inheritdoc />
-    public async Task<GeneratedDocument> GenerateCombinedDocumentAsync(IEnumerable<int> invoiceIds, DocumentType documentType)
-    {
-        var invoiceIdList = invoiceIds.ToList();
+        var invoiceIdList = invoiceIds?.ToList() ?? new List<int>();
+        var documentTypeList = documentTypes?.ToList() ?? new List<DocumentType>();
         
         if (!invoiceIdList.Any())
         {
             throw new ArgumentException("At least one invoice ID must be provided.", nameof(invoiceIds));
         }
 
-        var invoices = await _dbContext.Invoices
-            .Include(i => i.InvoiceItems)
-            .Include(i => i.Payer)
-            .Where(i => invoiceIdList.Contains(i.Id))
-            .ToListAsync();
-
-        if (invoices.Count != invoiceIdList.Count)
-        {
-            var foundIds = invoices.Select(i => i.Id).ToHashSet();
-            var missingIds = invoiceIdList.Where(id => !foundIds.Contains(id)).ToList();
-            throw new ArgumentException($"Invoices not found: {string.Join(", ", missingIds)}", nameof(invoiceIds));
-        }
-
-        var nonMaterialInvoices = invoices.Where(i => i.Type != InvoiceType.Material).ToList();
-        if (nonMaterialInvoices.Any())
-        {
-            var invalidIds = nonMaterialInvoices.Select(i => i.Id).ToList();
-            throw new ArgumentException($"Document generation is only supported for Material type invoices. Invalid invoices: {string.Join(", ", invalidIds)}", nameof(invoiceIds));
-        }
-
-        _logger.LogInformation("Generating combined {DocumentType} document for {Count} invoices: {InvoiceIds}", 
-            documentType, invoices.Count, string.Join(", ", invoiceIdList));
-
-        // TODO: Implement actual combined document generation logic
-        // For now, return a placeholder document indicating the feature is not yet implemented
-        var invoiceSerials = string.Join(", ", invoices.Select(i => i.Serial ?? $"ID:{i.Id}"));
-        var content = System.Text.Encoding.UTF8.GetBytes(
-            $"Combined document generation for {documentType} is not yet implemented.\n" +
-            $"Invoice Count: {invoices.Count}\n" +
-            $"Invoice Serials: {invoiceSerials}");
-
-        return new GeneratedDocument
-        {
-            FileName = GenerateCombinedFileName(invoices, documentType),
-            Content = content,
-            ContentType = GetContentType(documentType),
-            DocumentType = documentType
-        };
-    }
-
-    /// <inheritdoc />
-    public async Task<List<GeneratedDocument>> GenerateCombinedDocumentsAsync(IEnumerable<int> invoiceIds, IEnumerable<DocumentType> documentTypes)
-    {
-        var documentTypeList = documentTypes?.ToList() ?? new List<DocumentType>();
         if (!documentTypeList.Any())
         {
             throw new ArgumentException("At least one document type must be provided.", nameof(documentTypes));
         }
 
-        var invoiceIdList = invoiceIds.ToList();
-        if (!invoiceIdList.Any())
-        {
-            throw new ArgumentException("At least one invoice ID must be provided.", nameof(invoiceIds));
-        }
-
-        // Fetch and validate invoices once to avoid N+1 queries
+        // Fetch all invoices in a single query
         var invoices = await _dbContext.Invoices
             .Include(i => i.InvoiceItems)
             .Include(i => i.Payer)
             .Where(i => invoiceIdList.Contains(i.Id))
             .ToListAsync();
 
+        // Validate all invoices exist
         if (invoices.Count != invoiceIdList.Count)
         {
             var foundIds = invoices.Select(i => i.Id).ToHashSet();
@@ -145,6 +50,7 @@ public class DocumentGenerationService : IDocumentGenerationService
             throw new ArgumentException($"Invoices not found: {string.Join(", ", missingIds)}", nameof(invoiceIds));
         }
 
+        // Validate all invoices are Material type
         var nonMaterialInvoices = invoices.Where(i => i.Type != InvoiceType.Material).ToList();
         if (nonMaterialInvoices.Any())
         {
@@ -152,11 +58,14 @@ public class DocumentGenerationService : IDocumentGenerationService
             throw new ArgumentException($"Document generation is only supported for Material type invoices. Invalid invoices: {string.Join(", ", invalidIds)}", nameof(invoiceIds));
         }
 
-        // Generate documents for each type using pre-fetched invoices
+        _logger.LogInformation("Generating {DocumentTypeCount} document type(s) for {InvoiceCount} invoice(s): {InvoiceIds}", 
+            documentTypeList.Count, invoices.Count, string.Join(", ", invoiceIdList));
+
+        // Generate each document type
         var documents = new List<GeneratedDocument>();
         foreach (var documentType in documentTypeList)
         {
-            var document = GenerateCombinedDocumentFromInvoices(invoices, documentType);
+            var document = GenerateDocumentFromInvoices(invoices, documentType);
             documents.Add(document);
         }
 
@@ -187,53 +96,56 @@ public class DocumentGenerationService : IDocumentGenerationService
         return invoice != null && invoice.Type == InvoiceType.Material;
     }
 
-    private static string GenerateFileName(Invoice invoice, DocumentType documentType)
+    private GeneratedDocument GenerateDocumentFromInvoices(List<Invoice> invoices, DocumentType documentType)
     {
-        var serial = !string.IsNullOrEmpty(invoice.Serial) ? invoice.Serial : $"Invoice_{invoice.Id}";
-        var date = invoice.Date?.ToString("yyyyMMdd") ?? DateTime.Now.ToString("yyyyMMdd");
-        
-        return documentType switch
+        _logger.LogInformation("Generating {DocumentType} document for {Count} invoice(s)", 
+            documentType, invoices.Count);
+
+        // TODO: Implement actual document generation logic
+        // For now, return a placeholder document indicating the feature is not yet implemented
+        var invoiceSerials = string.Join(", ", invoices.Select(i => i.Serial ?? $"ID:{i.Id}"));
+        var content = System.Text.Encoding.UTF8.GetBytes(
+            $"Document generation for {documentType} is not yet implemented.\n" +
+            $"Invoice Count: {invoices.Count}\n" +
+            $"Invoice Serials: {invoiceSerials}");
+
+        return new GeneratedDocument
         {
-            DocumentType.WarehouseInOut => $"WarehouseInOut_{serial}_{date}.xlsx",
-            DocumentType.PurchaseRegistration => $"PurchaseRegistration_{serial}_{date}.xlsx",
-            DocumentType.InvoicePdf => $"Invoice_{serial}_{date}.pdf",
-            _ => $"Document_{serial}_{date}.txt"
+            FileName = GenerateFileName(invoices, documentType),
+            Content = content,
+            ContentType = GetContentType(documentType),
+            DocumentType = documentType
         };
     }
 
-    private static string GenerateCombinedFileName(List<Invoice> invoices, DocumentType documentType)
+    private static string GenerateFileName(List<Invoice> invoices, DocumentType documentType)
     {
         var date = DateTime.Now.ToString("yyyyMMdd");
-        var count = invoices.Count;
         
+        // Single invoice: use invoice serial
+        if (invoices.Count == 1)
+        {
+            var invoice = invoices[0];
+            var serial = !string.IsNullOrEmpty(invoice.Serial) ? invoice.Serial : $"Invoice_{invoice.Id}";
+            var invoiceDate = invoice.Date?.ToString("yyyyMMdd") ?? date;
+            
+            return documentType switch
+            {
+                DocumentType.WarehouseInOut => $"WarehouseInOut_{serial}_{invoiceDate}.xlsx",
+                DocumentType.PurchaseRegistration => $"PurchaseRegistration_{serial}_{invoiceDate}.xlsx",
+                DocumentType.InvoicePdf => $"Invoice_{serial}_{invoiceDate}.pdf",
+                _ => $"Document_{serial}_{invoiceDate}.txt"
+            };
+        }
+        
+        // Multiple invoices: use combined naming
+        var count = invoices.Count;
         return documentType switch
         {
             DocumentType.WarehouseInOut => $"WarehouseInOut_Combined_{count}invoices_{date}.xlsx",
             DocumentType.PurchaseRegistration => $"PurchaseRegistration_Combined_{count}invoices_{date}.xlsx",
             DocumentType.InvoicePdf => $"Invoices_Combined_{count}invoices_{date}.pdf",
             _ => $"Document_Combined_{count}invoices_{date}.txt"
-        };
-    }
-
-    private GeneratedDocument GenerateCombinedDocumentFromInvoices(List<Invoice> invoices, DocumentType documentType)
-    {
-        _logger.LogInformation("Generating combined {DocumentType} document for {Count} invoices", 
-            documentType, invoices.Count);
-
-        // TODO: Implement actual combined document generation logic
-        // For now, return a placeholder document indicating the feature is not yet implemented
-        var invoiceSerials = string.Join(", ", invoices.Select(i => i.Serial ?? $"ID:{i.Id}"));
-        var content = System.Text.Encoding.UTF8.GetBytes(
-            $"Combined document generation for {documentType} is not yet implemented.\n" +
-            $"Invoice Count: {invoices.Count}\n" +
-            $"Invoice Serials: {invoiceSerials}");
-
-        return new GeneratedDocument
-        {
-            FileName = GenerateCombinedFileName(invoices, documentType),
-            Content = content,
-            ContentType = GetContentType(documentType),
-            DocumentType = documentType
         };
     }
 

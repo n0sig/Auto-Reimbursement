@@ -27,33 +27,20 @@ public class GeneratedDocument
 }
 
 /// <summary>
-/// Request parameters for document generation (single invoice)
+/// Request parameters for document generation.
+/// Supports both single and multiple invoices in one unified request model.
 /// </summary>
 public class DocumentGenerationRequest
 {
     /// <summary>
-    /// The invoice ID to generate documents for
-    /// </summary>
-    public int InvoiceId { get; set; }
-    
-    /// <summary>
-    /// The types of documents to generate
-    /// </summary>
-    public List<DocumentType> DocumentTypes { get; set; } = new();
-}
-
-/// <summary>
-/// Request parameters for batch document generation (multiple invoices)
-/// </summary>
-public class BatchDocumentGenerationRequest
-{
-    /// <summary>
-    /// The invoice IDs to generate documents for
+    /// The invoice IDs to generate documents for.
+    /// Use single ID for single-invoice generation, or multiple IDs for combined documents.
     /// </summary>
     public List<int> InvoiceIds { get; set; } = new();
     
     /// <summary>
-    /// The types of documents to generate. Each document type will contain data from all specified invoices.
+    /// The types of documents to generate.
+    /// Each document type will contain data from all specified invoices.
     /// </summary>
     public List<DocumentType> DocumentTypes { get; set; } = new();
 }
