@@ -10,6 +10,8 @@
 @inject NavigationManager NavigationManager
 @inject ILogger<ReimbursementPlanDetails> Logger
 @inject IInvoiceStorageService StorageService
+@inject IDocumentGenerationService DocumentGenerationService
+@inject ISmartDownloadService SmartDownloadService
 @rendermode InteractiveServer
 
 @attribute [Authorize]
@@ -107,12 +109,31 @@ else
                                         }
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary" @onclick="() => ViewInvoiceDetails(invoice.Id)">
-                                            <span class="bi bi-eye"></span> Details
-                                        </button>
-                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteInvoice(invoice.Id)">
-                                            <span class="bi bi-trash"></span> Delete
-                                        </button>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-primary" @onclick="() => ViewInvoiceDetails(invoice.Id)">
+                                                <span class="bi bi-eye"></span> Details
+                                            </button>
+                                            @if (invoice.Type == InvoiceType.Material)
+                                            {
+                                                <button class="btn btn-sm btn-success" 
+                                                        @onclick="() => GenerateDocuments(invoice.Id)"
+                                                        disabled="@(generatingDocumentsForInvoiceId == invoice.Id)"
+                                                        title="Generate warehouse and purchase documents">
+                                                    @if (generatingDocumentsForInvoiceId == invoice.Id)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="bi bi-file-earmark-text"></span>
+                                                    }
+                                                    Docs
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteInvoice(invoice.Id)">
+                                                <span class="bi bi-trash"></span> Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -233,6 +254,7 @@ else
     private Invoice? selectedInvoice;
     private bool showInvoiceDetails = false;
     private List<ApplicationUser>? availablePayers;
+    private int? generatingDocumentsForInvoiceId;
 
     [SupplyParameterFromForm]
     private InvoiceForm.InvoiceFormModel newInvoiceModel { get; set; } = new();
@@ -400,5 +422,61 @@ else
         statusMessage = null;
         errorMessage = null;
         await LoadPlan();
+    }
+
+    private async Task GenerateDocuments(int invoiceId)
+    {
+        try
+        {
+            generatingDocumentsForInvoiceId = invoiceId;
+            statusMessage = null;
+            errorMessage = null;
+            StateHasChanged();
+
+            // Check if document generation is supported for this invoice
+            var isSupported = await DocumentGenerationService.IsDocumentGenerationSupportedAsync(invoiceId);
+            if (!isSupported)
+            {
+                errorMessage = "Document generation is only supported for Material type invoices.";
+                return;
+            }
+
+            // Get supported document types and generate all documents
+            var documentTypes = await DocumentGenerationService.GetSupportedDocumentTypesAsync(invoiceId);
+            if (documentTypes.Count == 0)
+            {
+                errorMessage = "No document types available for this invoice.";
+                return;
+            }
+
+            var documents = await DocumentGenerationService.GenerateDocumentsAsync(new[] { invoiceId }, documentTypes);
+            if (documents.Count == 0)
+            {
+                errorMessage = "No documents were generated.";
+                return;
+            }
+
+            // Get invoice serial for archive name
+            var invoice = await DbContext.Invoices.FindAsync(invoiceId);
+            var archiveName = invoice != null && !string.IsNullOrEmpty(invoice.Serial) 
+                ? $"Documents_{invoice.Serial}.zip" 
+                : $"Documents_Invoice_{invoiceId}.zip";
+
+            // Download using smart download (auto-compresses if 3+ files)
+            await SmartDownloadService.DownloadDocumentsAsync(documents, archiveName);
+
+            statusMessage = $"Generated and downloaded {documents.Count} document(s) successfully.";
+            Logger.LogInformation("Generated {Count} documents for invoice {InvoiceId}", documents.Count, invoiceId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error generating documents: {ex.Message}";
+            Logger.LogError(ex, "Error generating documents for invoice {InvoiceId}", invoiceId);
+        }
+        finally
+        {
+            generatingDocumentsForInvoiceId = null;
+            StateHasChanged();
+        }
     }
 }

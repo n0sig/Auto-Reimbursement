@@ -19,7 +19,7 @@ public class InvoiceItem
     [StringLength(50)]
     public string? Unit { get; set; }
     
-    public decimal? Amount { get; set; }
+    public int? Amount { get; set; }
     
     [Required]
     [Column(TypeName = "decimal(18,2)")]

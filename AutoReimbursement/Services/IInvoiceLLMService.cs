@@ -19,7 +19,7 @@ public class ExtractedInvoiceItem
     public string Name { get; set; } = string.Empty;
     public string? Specification { get; set; }
     public string? Unit { get; set; }
-    public decimal? Quantity { get; set; }
+    public int? Quantity { get; set; }
     public decimal Pretax { get; set; }
     public decimal Tax { get; set; }
 }
