@@ -75,18 +75,62 @@ else
                         <thead>
                             <tr>
                                 <th>Serial #</th>
-                                <th>Type</th>
+                                <th>
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn btn-link text-decoration-none p-0 dropdown-toggle" type="button" id="typeFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: inherit; font-weight: bold;">
+                                            Type
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="typeFilterDropdown">
+                                            <li><a class="dropdown-item @(filterType == null ? "active" : "")" href="#" @onclick="() => SetTypeFilter(null)" @onclick:preventDefault>All</a></li>
+                                            <li><a class="dropdown-item @(filterType == InvoiceType.Material ? "active" : "")" href="#" @onclick="() => SetTypeFilter(InvoiceType.Material)" @onclick:preventDefault>Material</a></li>
+                                            <li><a class="dropdown-item @(filterType == InvoiceType.Travel ? "active" : "")" href="#" @onclick="() => SetTypeFilter(InvoiceType.Travel)" @onclick:preventDefault>Travel</a></li>
+                                            <li><a class="dropdown-item @(filterType == InvoiceType.Others ? "active" : "")" href="#" @onclick="() => SetTypeFilter(InvoiceType.Others)" @onclick:preventDefault>Others</a></li>
+                                        </ul>
+                                    </div>
+                                </th>
                                 <th>Description</th>
-                                <th>Amount</th>
-                                <th>Date</th>
-                                <th>Payer</th>
+                                <th>
+                                    <button class="btn btn-link text-decoration-none p-0" @onclick='() => ToggleSort("Amount")' style="color: inherit; font-weight: bold;">
+                                        Amount
+                                        @if (sortColumn == "Amount")
+                                        {
+                                            <span class="bi bi-@(sortDescending ? "sort-down" : "sort-up")"></span>
+                                        }
+                                    </button>
+                                </th>
+                                <th>
+                                    <button class="btn btn-link text-decoration-none p-0" @onclick='() => ToggleSort("Date")' style="color: inherit; font-weight: bold;">
+                                        Date
+                                        @if (sortColumn == "Date")
+                                        {
+                                            <span class="bi bi-@(sortDescending ? "sort-down" : "sort-up")"></span>
+                                        }
+                                    </button>
+                                </th>
+                                <th>
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn btn-link text-decoration-none p-0 dropdown-toggle" type="button" id="payerFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: inherit; font-weight: bold;">
+                                            Payer
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="payerFilterDropdown">
+                                            <li><a class="dropdown-item @(filterPayerId == null ? "active" : "")" href="#" @onclick="() => SetPayerFilter(null)" @onclick:preventDefault>All</a></li>
+                                            @if (availablePayers != null)
+                                            {
+                                                @foreach (var payer in availablePayers)
+                                                {
+                                                    <li><a class="dropdown-item @(filterPayerId == payer.Id ? "active" : "")" href="#" @onclick="() => SetPayerFilter(payer.Id)" @onclick:preventDefault>@payer.UserName</a></li>
+                                                }
+                                            }
+                                        </ul>
+                                    </div>
+                                </th>
                                 <th>Items</th>
                                 <th>PDF</th>
                                 <th style="width: 150px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var invoice in plan.Invoices.OrderByDescending(i => i.Date))
+                            @foreach (var invoice in GetFilteredAndSortedInvoices())
                             {
                                 <tr>
                                     <td>@(invoice.Serial ?? "-")</td>
@@ -255,9 +299,71 @@ else
     private bool showInvoiceDetails = false;
     private List<ApplicationUser>? availablePayers;
     private int? generatingDocumentsForInvoiceId;
+    
+    // Filter and sort state
+    private InvoiceType? filterType = null;
+    private string? filterPayerId = null;
+    private string sortColumn = "Date";
+    private bool sortDescending = true;
 
     [SupplyParameterFromForm]
     private InvoiceForm.InvoiceFormModel newInvoiceModel { get; set; } = new();
+
+    private IEnumerable<Invoice> GetFilteredAndSortedInvoices()
+    {
+        if (plan?.Invoices == null)
+            return Enumerable.Empty<Invoice>();
+
+        var invoices = plan.Invoices.AsEnumerable();
+
+        // Apply filters
+        if (filterType.HasValue)
+        {
+            invoices = invoices.Where(i => i.Type == filterType.Value);
+        }
+
+        if (!string.IsNullOrEmpty(filterPayerId))
+        {
+            invoices = invoices.Where(i => i.PayerId == filterPayerId);
+        }
+
+        // Apply sorting
+        invoices = sortColumn switch
+        {
+            "Amount" => sortDescending 
+                ? invoices.OrderByDescending(i => i.Amount) 
+                : invoices.OrderBy(i => i.Amount),
+            "Date" => sortDescending 
+                ? invoices.OrderByDescending(i => i.Date) 
+                : invoices.OrderBy(i => i.Date),
+            _ => invoices.OrderByDescending(i => i.Date)
+        };
+
+        return invoices;
+    }
+
+    private void ToggleSort(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortDescending = !sortDescending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortDescending = true;
+        }
+    }
+
+    private void SetTypeFilter(InvoiceType? type)
+    {
+        filterType = type;
+    }
+
+    private void SetPayerFilter(string? payerId)
+    {
+        filterPayerId = payerId;
+    }
 
     protected override async Task OnInitializedAsync()
     {
